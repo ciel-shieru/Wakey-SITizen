@@ -10,6 +10,7 @@ import java.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.cielshieru.wakey.data.store.JsonConfig
 
 /**
  * Fetches the wakey-sitizen timetable JSON from a SIT-ICS-Go server
@@ -33,7 +34,7 @@ import kotlinx.serialization.json.Json
  */
 class TimetableClient(
     private val baseUrlProvider: com.cielshieru.wakey.domain.port.BaseUrlProvider,
-    private val json: Json = Json { ignoreUnknownKeys = true }
+    private val json: Json = JsonConfig.instance
 ) {
 
     sealed interface Result {

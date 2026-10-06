@@ -24,16 +24,16 @@ object AlarmConfigStore {
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
         AlarmConfig(
-            onlineOffsetMinutes = prefs[ONLINE_OFFSET] ?: 60,
-            campusOffsetMinutes = prefs[CAMPUS_OFFSET] ?: 90,
-            repeatIntervalMinutes = prefs[REPEAT_INTERVAL] ?: 5,
-            maxRepeats = prefs[MAX_REPEATS] ?: 6,
-            targetSleepDurationHours = prefs[SLEEP_DURATION] ?: 8,
-            bedtimeReminderOffsetMinutes = prefs[BEDTIME_OFFSET] ?: 30,
-            externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: 30,
+            onlineOffsetMinutes = prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET,
+            campusOffsetMinutes = prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET,
+            repeatIntervalMinutes = prefs[REPEAT_INTERVAL] ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL,
+            maxRepeats = prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS,
+            targetSleepDurationHours = prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION,
+            bedtimeReminderOffsetMinutes = prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET,
+            externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES,
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
-            baseUrl = prefs[BASE_URL] ?: "http://localhost:42748"
+            baseUrl = prefs[BASE_URL] ?: AlarmConfig.DEFAULT_BASE_URL
         )
     }
 

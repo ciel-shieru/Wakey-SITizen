@@ -18,6 +18,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import com.cielshieru.wakey.domain.model.AlarmConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.Json
 import java.time.Clock
@@ -58,7 +59,7 @@ object AppModule {
     @Singleton
     fun provideBaseUrlProvider(): BaseUrlProvider =
         object : BaseUrlProvider {
-            override val baseUrl: String = "http://localhost:42748"
+            override val baseUrl: String = AlarmConfig.DEFAULT_BASE_URL
         }
 
     @Provides
