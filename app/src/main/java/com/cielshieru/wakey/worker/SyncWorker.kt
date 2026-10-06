@@ -1,0 +1,183 @@
+package com.cielshieru.wakey.worker
+
+import android.content.Context
+import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.cielshieru.wakey.android.AlarmService
+import com.cielshieru.wakey.data.network.TimetableClient
+import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
+import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
+import com.cielshieru.wakey.data.store.OverrideStore.overridesFlow
+import com.cielshieru.wakey.data.store.OverrideStore.saveOverrides
+import com.cielshieru.wakey.data.store.TimetableStore.saveTimetable
+import com.cielshieru.wakey.data.store.TimetableStore.timetableFlow
+import com.cielshieru.wakey.domain.AdjustForExternalEvents
+import com.cielshieru.wakey.domain.AlarmComputer
+import com.cielshieru.wakey.domain.BedtimeComputer
+import com.cielshieru.wakey.domain.OverrideResolver
+import com.cielshieru.wakey.domain.model.TimetableEvent
+import com.cielshieru.wakey.domain.port.CalendarEventSource
+import com.cielshieru.wakey.domain.port.Clock
+import com.cielshieru.wakey.domain.port.ZoneProvider
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import java.time.LocalDate
+import kotlinx.coroutines.flow.first
+
+/**
+ * Background sync worker executing the full alarm-management pipeline
+ * (ADR-0007). Enqueued as a 12-hour periodic request (30-minute flex) and as
+ * a one-time request on boot (ADR-0007, boot recovery).
+ *
+ * Pipeline:
+ * 1. **Fetch timetable** — base-URL JSON; on failure fall back to the
+ *    last-parsed events from DataStore (stale-while-revalidate).
+ * 2. **Parse and filter** — drop x-site/BrightSpace events (`brightspace-`
+ *    course-code prefix).
+ * 3. **Compute alarm schedule** — first event per day, smart offset, repeat
+ *    pattern (ADR-0003).
+ * 4. **Adjust for external events** — when enabled, scan device calendars for
+ *    pre-timetable events and shift the first alarm earlier (ADR-0005).
+ * 5. **Apply manual overrides** — active override from DataStore
+ *    (ADR-0006); expired overrides are cleared.
+ * 6. **Reconcile alarms** — clear-then-set via [AlarmService] (ADR-0003),
+ *    including days that dropped out of the new schedule so no stale alarms
+ *    survive.
+ * 7. **Compute bedtime reminder** — derive from the first alarm, set via
+ *    [AlarmService] when in the future (ADR-0004).
+ *
+ * The resulting schedules are persisted to DataStore for the UI and for
+ * boot recovery.
+ */
+@HiltWorker
+class SyncWorker @AssistedInject constructor(
+    @Assisted appContext: Context,
+    @Assisted params: WorkerParameters,
+    private val timetableClient: TimetableClient,
+    private val alarmService: AlarmService,
+    private val calendarEventSource: CalendarEventSource,
+    private val dataStore: DataStore<Preferences>,
+    private val clock: Clock,
+    private val zoneProvider: ZoneProvider
+) : CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val zone = zoneProvider.zone
+        val now = clock.now()
+        try {
+            val config = dataStore.data.configFlow().first()
+
+            // Step 1: fetch timetable (stale-while-revalidate on failure).
+            val events = fetchTimetable()
+
+            // Step 2: parse and filter — drop BrightSpace/x-site events.
+            val filteredEvents = events.filterNot {
+                it.courseCode.startsWith(BRIGHTSPACE_PREFIX, ignoreCase = true)
+            }
+
+            // Step 3: compute alarm schedule (ADR-0003).
+            val schedules =
+                AlarmComputer.computeSchedule(filteredEvents, config, clock, zoneProvider)
+
+            // Step 4: adjust for external events (ADR-0005), when enabled.
+            val adjustedSchedules = if (config.externalEventEnabled) {
+                schedules.map { schedule ->
+                    val externalEvents =
+                        calendarEventSource.getEventsForDate(schedule.day, emptyList())
+                    AdjustForExternalEvents.adjust(
+                        schedule,
+                        externalEvents,
+                        config.externalEventBufferMinutes,
+                        zone
+                    )
+                }
+            } else {
+                schedules
+            }
+
+            // Step 5: apply manual overrides (ADR-0006); clear expired ones.
+            val overrides = dataStore.data.overridesFlow().first()
+            val activeOverrides = OverrideResolver.clearExpired(overrides, now)
+            if (activeOverrides.size != overrides.size) {
+                dataStore.saveOverrides(activeOverrides)
+            }
+            val finalSchedules =
+                OverrideResolver.resolve(activeOverrides, now, zone)?.let { resolved ->
+                    adjustedSchedules.map { schedule ->
+                        OverrideResolver.applyOverride(resolved, schedule, zone)
+                    }
+                } ?: adjustedSchedules
+
+            // Step 6: reconcile alarms — clear-then-set (ADR-0003). Also
+            // cancel days that had alarms before but are absent now, so no
+            // stale alarms survive a timetable change.
+            val previousDays =
+                dataStore.data.schedulesFlow().first().orEmpty()
+                    .map { it.day }
+                    .toSet()
+            val currentDays = finalSchedules.map { it.day }.toSet()
+            (previousDays - currentDays).forEach { day ->
+                alarmService.cancelAlarmsForDay(day)
+            }
+            finalSchedules.forEach { schedule ->
+                alarmService.clearAndSetAlarms(schedule.day, schedule.alarms)
+            }
+
+            // Step 7: compute and set the bedtime reminder (ADR-0004).
+            val bedtime = BedtimeComputer.compute(finalSchedules, config, now)
+            if (bedtime != null) {
+                alarmService.setBedtimeReminder(bedtime.triggerAt.toEpochMilli())
+            } else {
+                // No upcoming alarm (or reminder already passed) — make sure a
+                // previously scheduled reminder does not fire stale.
+                alarmService.cancelBedtimeReminder()
+            }
+
+            // Persist schedules for the UI and for boot recovery.
+            dataStore.saveSchedules(finalSchedules)
+
+            Log.i(
+                TAG,
+                "Sync complete: ${finalSchedules.size} schedule(s), " +
+                    "${finalSchedules.sumOf { it.alarms.size }} alarm(s)"
+            )
+            return Result.success()
+        } catch (e: Exception) {
+            Log.e(TAG, "Sync failed", e)
+            // Let WorkManager retry with backoff (ADR-0007) before giving up.
+            return if (runAttemptCount < MAX_RETRIES) Result.retry() else Result.failure()
+        }
+    }
+
+    /**
+     * Step 1. On a successful fetch the response is persisted to DataStore
+     * and its events returned. On any fetch failure the last-parsed events
+     * from DataStore are returned (stale-while-revalidate, ADR-0007) — an
+     * empty list if there is none.
+     */
+    private suspend fun fetchTimetable(): List<TimetableEvent> =
+        when (val result = timetableClient.fetch()) {
+            is TimetableClient.Result.Success -> {
+                dataStore.saveTimetable(result.response)
+                result.response.events.map { TimetableEvent.fromJson(it) }
+            }
+            is TimetableClient.Result.Error -> {
+                Log.w(TAG, "Timetable fetch failed; falling back to last-known data", result.cause)
+                dataStore.data.timetableFlow().first()
+                    ?.events
+                    ?.map { TimetableEvent.fromJson(it) }
+                    ?: emptyList()
+            }
+        }
+
+    companion object {
+        private const val TAG = "SyncWorker"
+        private const val BRIGHTSPACE_PREFIX = "brightspace-"
+        private const val MAX_RETRIES = 4
+    }
+}
