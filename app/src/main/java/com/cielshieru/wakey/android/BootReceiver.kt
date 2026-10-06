@@ -32,9 +32,9 @@ class BootReceiver : BroadcastReceiver() {
         val workRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .addTag(TAG_BOOT_SYNC)
             .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                SyncWorker.BACKOFF_DELAY_MILLIS,
-                TimeUnit.MILLISECONDS
+                BackoffPolicy.LINEAR,
+                1L,
+                TimeUnit.MINUTES
             )
             .build()
 

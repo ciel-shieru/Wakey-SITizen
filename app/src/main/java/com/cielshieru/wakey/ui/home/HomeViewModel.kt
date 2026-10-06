@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -82,8 +84,9 @@ class HomeViewModel @Inject constructor(
 
                         if (firstUpcoming != null) {
                             val alarmDate = firstUpcoming.triggerAt.atZone(zone).toLocalDate()
-                            val alarmTime = firstUpcoming.triggerAt.atZone(zone).toLocalTime()
-                            "Next alarm: ${alarmTime.hour}:${alarmTime.minute.toString().padStart(2, '0')} AM/PM on $alarmDate"
+                            val alarmLocalTime = firstUpcoming.triggerAt.atZone(zone).toLocalTime()
+                            val period = if (alarmLocalTime.hour < 12) "AM" else "PM"
+                            "Next alarm: ${alarmLocalTime.hour}:${alarmLocalTime.minute.toString().padStart(2, '0')} $period on $alarmDate"
                         } else {
                             "No alarms set"
                         }

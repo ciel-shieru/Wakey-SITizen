@@ -19,7 +19,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.time.Clock
 import java.time.Instant
@@ -57,16 +56,10 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBaseUrlProvider(
-        datastore: DataStore<Preferences>
-    ): BaseUrlProvider {
-        val initialUrl = runBlocking {
-            datastore.data.configFlow().first().baseUrl
+    fun provideBaseUrlProvider(): BaseUrlProvider =
+        object : BaseUrlProvider {
+            override val baseUrl: String = "http://localhost:42748"
         }
-        return object : BaseUrlProvider {
-            override val baseUrl: String = initialUrl
-        }
-    }
 
     @Provides
     @Singleton
