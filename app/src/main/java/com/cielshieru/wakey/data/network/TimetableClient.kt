@@ -9,7 +9,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import com.cielshieru.wakey.data.store.JsonConfig
 
 /**
@@ -33,8 +32,7 @@ import com.cielshieru.wakey.data.store.JsonConfig
  * (ADR-0007).
  */
 class TimetableClient(
-    private val baseUrlProvider: com.cielshieru.wakey.domain.port.BaseUrlProvider,
-    private val json: Json = JsonConfig.instance
+    private val baseUrlProvider: com.cielshieru.wakey.domain.port.BaseUrlProvider
 ) {
 
     sealed interface Result {
@@ -50,7 +48,7 @@ class TimetableClient(
             )
         } else {
             val body = withContext(Dispatchers.IO) { httpGet("$baseUrl$PATH") }
-            val response = json.decodeFromString<WakeyResponse>(body)
+            val response = JsonConfig.instance.decodeFromString<WakeyResponse>(body)
             if (response.schema_version < MIN_SUPPORTED_SCHEMA_VERSION) {
                 Result.Error(
                     UnsupportedSchemaVersion(

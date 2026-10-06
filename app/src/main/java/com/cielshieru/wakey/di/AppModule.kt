@@ -20,7 +20,6 @@ import dagger.hilt.components.SingletonComponent
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.Json
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -31,13 +30,6 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
-    @Provides
-    @Singleton
-    fun provideJson(): Json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
 
     @Provides
     @Singleton
@@ -65,11 +57,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTimetableClient(
-        json: Json,
         baseUrlProvider: BaseUrlProvider
     ): TimetableClient = TimetableClient(
-        baseUrlProvider = baseUrlProvider,
-        json = json
+        baseUrlProvider = baseUrlProvider
     )
 
     @Provides
