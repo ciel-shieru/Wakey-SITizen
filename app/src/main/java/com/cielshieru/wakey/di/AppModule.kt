@@ -37,7 +37,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideClock(): Clock = Clock.systemDefaultZone()
+    fun provideJavaClock(): java.time.Clock = java.time.Clock.systemDefaultZone()
+
+    @Provides
+    @Singleton
+    fun provideDomainClock(javaClock: java.time.Clock): com.cielshieru.wakey.domain.port.Clock = object : com.cielshieru.wakey.domain.port.Clock {
+        override fun now(): java.time.Instant = javaClock.instant()
+    }
 
     @Provides
     @Singleton
