@@ -32,7 +32,7 @@ import kotlinx.serialization.json.Json
  * (ADR-0007).
  */
 class TimetableClient(
-    private val baseUrlProvider: suspend () -> String,
+    private val baseUrlProvider: com.cielshieru.wakey.domain.port.BaseUrlProvider,
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
 
@@ -42,7 +42,7 @@ class TimetableClient(
     }
 
     suspend fun fetch(): Result = try {
-        val baseUrl = baseUrlProvider().trim().trimEnd('/')
+        val baseUrl = baseUrlProvider.baseUrl.trim().trimEnd('/')
         if (baseUrl.isEmpty()) {
             Result.Error(
                 IllegalStateException("Timetable base URL is not configured")

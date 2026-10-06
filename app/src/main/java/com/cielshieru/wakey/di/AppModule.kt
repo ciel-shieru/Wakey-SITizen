@@ -10,12 +10,16 @@ import com.cielshieru.wakey.data.calendar.SystemCalendarSource
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
+import com.cielshieru.wakey.domain.port.BaseUrlProvider
 import com.cielshieru.wakey.domain.port.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import java.time.Clock
 import java.time.Instant
@@ -53,10 +57,24 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideBaseUrlProvider(
+        datastore: DataStore<Preferences>
+    ): BaseUrlProvider {
+        val initialUrl = runBlocking {
+            datastore.data.configFlow().first().baseUrl
+        }
+        return object : BaseUrlProvider {
+            override val baseUrl: String = initialUrl
+        }
+    }
+
+    @Provides
+    @Singleton
     fun provideTimetableClient(
-        json: Json
+        json: Json,
+        baseUrlProvider: BaseUrlProvider
     ): TimetableClient = TimetableClient(
-        baseUrlProvider = { "http://localhost:42748" }, // Default, user-configurable
+        baseUrlProvider = baseUrlProvider,
         json = json
     )
 

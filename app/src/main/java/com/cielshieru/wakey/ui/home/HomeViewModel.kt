@@ -20,7 +20,27 @@ data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
     val overrideText: String? = null,
     val isSyncing: Boolean = false
-)
+) {
+    companion object {
+        private val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
+    }
+
+    fun nextAlarmFormatted(zone: ZoneId): String {
+        if (nextAlarmText == "No alarms set") return nextAlarmText
+        val localTime = nextAlarmText.substringBefore(", ")
+        val datePart = nextAlarmText.substringAfter(", ")
+        try {
+            val date = LocalDate.parse(datePart, DateTimeFormatter.ofPattern("EEE, MMM d, yyyy"))
+            val parts = localTime.split(":")
+            val hour = parts[0].toInt()
+            val minute = parts[1].toInt()
+            val instant = date.atTime(hour, minute).atZone(zone).toInstant()
+            return TIME_FORMATTER.format(instant.atZone(zone))
+        } catch (e: Exception) {
+            return nextAlarmText
+        }
+    }
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -32,11 +52,14 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            alarmRepository.overrides
-                .combine(alarmRepository.config) { overrides, config ->
-                    overrides to config
+            alarmRepository.schedules
+                .combine(alarmRepository.overrides) { schedules: List<AlarmSchedule>?, overrides: List<ManualOverride> ->
+                    Pair(schedules, overrides)
                 }
-                .collect { (overrides, config) ->
+                .combine(alarmRepository.config) { pair: Pair<List<AlarmSchedule>?, List<ManualOverride>>, config: AlarmConfig ->
+                    Triple(pair.first, pair.second, config)
+                }
+                .collect { (schedules, overrides, _) ->
                     val activeOverride = overrides.filter { it.expiresAt > Instant.now() }
                         .maxByOrNull { it.expiresAt.toEpochMilli() }
 
@@ -47,8 +70,27 @@ class HomeViewModel @Inject constructor(
                         null -> null
                     }
 
+                    val nextAlarmText = if (schedules.isNullOrEmpty()) {
+                        "No alarms set"
+                    } else {
+                        val now = Instant.now()
+                        val zone = ZoneId.systemDefault()
+                        val firstUpcoming = schedules
+                            .flatMap { it.alarms }
+                            .filter { it.triggerAt.isAfter(now) }
+                            .minByOrNull { it.triggerAt.toEpochMilli() }
+
+                        if (firstUpcoming != null) {
+                            val alarmDate = firstUpcoming.triggerAt.atZone(zone).toLocalDate()
+                            val alarmTime = firstUpcoming.triggerAt.atZone(zone).toLocalTime()
+                            "Next alarm: ${alarmTime.hour}:${alarmTime.minute.toString().padStart(2, '0')} AM/PM on $alarmDate"
+                        } else {
+                            "No alarms set"
+                        }
+                    }
+
                     _uiState.value = HomeUiState(
-                        nextAlarmText = "First class: 9:00 AM",
+                        nextAlarmText = nextAlarmText,
                         overrideText = overrideText
                     )
                 }

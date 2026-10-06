@@ -9,4 +9,5 @@ class FakeTimetableRepository : TimetableRepository {
 
     override suspend fun getEventsForDate(date: LocalDate): List<TimetableEvent> = events
     override suspend fun getEventsForRange(start: LocalDate, end: LocalDate): List<TimetableEvent> = events
+    override suspend fun refreshTimetable(): Result<List<TimetableEvent>> = Result.success(events)
 }

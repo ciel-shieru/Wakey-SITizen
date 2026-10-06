@@ -43,7 +43,7 @@ class AdjustForExternalEventsTest {
 
         val result = AdjustForExternalEvents.adjust(schedule, listOf(externalEvent), 30, ZoneOffset.UTC)
 
-        val expectedMinute = 7 * 60 + 15
+        val expectedMinute: Long = 7 * 60 + 15
         val actualMinute = result.firstAlarmTime!!.epochSecond / 60 % 1440
         assertEquals(expectedMinute, actualMinute)
     }

@@ -3,10 +3,12 @@ package com.cielshieru.wakey.android
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.work.BackoffPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.cielshieru.wakey.worker.SyncWorker
+import java.util.concurrent.TimeUnit
 
 /**
  * Restores alarm state after a device reboot (ADR-0007, boot recovery).
@@ -29,6 +31,11 @@ class BootReceiver : BroadcastReceiver() {
 
         val workRequest = OneTimeWorkRequestBuilder<SyncWorker>()
             .addTag(TAG_BOOT_SYNC)
+            .setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                SyncWorker.BACKOFF_DELAY_MILLIS,
+                TimeUnit.MILLISECONDS
+            )
             .build()
 
         WorkManager.getInstance(context)

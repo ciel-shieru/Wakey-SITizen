@@ -3,6 +3,7 @@ package com.cielshieru.wakey.ui
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Rule
 import org.junit.Test
 
@@ -12,8 +13,12 @@ class UiTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun `HomeScreen displays next alarm text`() {
+    fun `HomeScreen composes without errors`() {
         composeTestRule.onNodeWithText("Wakey-SITizen").assertIsDisplayed()
+    }
+
+    @Test
+    fun `HomeScreen displays next alarm text`() {
         composeTestRule.onNodeWithText("No alarms set").assertIsDisplayed()
     }
 
@@ -22,5 +27,15 @@ class UiTest {
         composeTestRule.onNodeWithText("15m").assertIsDisplayed()
         composeTestRule.onNodeWithText("30m").assertIsDisplayed()
         composeTestRule.onNodeWithText("60m").assertIsDisplayed()
+    }
+
+    @Test
+    fun `HomeScreen Skip Tomorrow button is displayed`() {
+        composeTestRule.onNodeWithText("Skip Tomorrow").assertIsDisplayed()
+    }
+
+    @Test
+    fun `HomeScreen Quick Actions title is displayed`() {
+        composeTestRule.onNodeWithText("Quick Actions").assertIsDisplayed()
     }
 }

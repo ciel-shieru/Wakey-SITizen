@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import java.util.concurrent.TimeUnit
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
@@ -150,7 +151,7 @@ class SyncWorker @AssistedInject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Sync failed", e)
             // Let WorkManager retry with backoff (ADR-0007) before giving up.
-            return if (runAttemptCount < MAX_RETRIES) Result.retry() else Result.failure()
+            return Result.retry()
         }
     }
 
@@ -178,6 +179,6 @@ class SyncWorker @AssistedInject constructor(
     companion object {
         private const val TAG = "SyncWorker"
         private const val BRIGHTSPACE_PREFIX = "brightspace-"
-        private const val MAX_RETRIES = 4
+        const val BACKOFF_DELAY_MILLIS = 5L * 60 * 1000L // 5 minutes for exponential backoff
     }
 }

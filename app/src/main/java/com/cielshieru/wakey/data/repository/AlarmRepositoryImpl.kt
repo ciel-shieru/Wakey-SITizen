@@ -4,9 +4,12 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
+import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
+import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.overridesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.saveOverrides
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +27,12 @@ class AlarmRepositoryImpl(
     }
 
     override val overrides: Flow<List<ManualOverride>> = datastore.data.overridesFlow()
+
+    override val schedules: Flow<List<AlarmSchedule>?> = datastore.data.schedulesFlow()
+
+    override suspend fun saveSchedules(schedules: List<AlarmSchedule>) {
+        datastore.saveSchedules(schedules)
+    }
 
     override suspend fun saveOverride(override: ManualOverride) {
         val current = overrides.first()

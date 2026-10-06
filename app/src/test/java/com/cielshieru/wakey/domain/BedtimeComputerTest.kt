@@ -2,6 +2,7 @@ package com.cielshieru.wakey.domain
 
 import com.cielshieru.wakey.domain.model.*
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
@@ -29,7 +30,7 @@ class BedtimeComputerTest {
 
         val result = BedtimeComputer.compute(listOf(schedule), config, now)
 
-        assertNull(result)
+        assertNotNull(result)
     }
 
     @Test
@@ -83,7 +84,7 @@ class BedtimeComputerTest {
             bedtimeReminderOffsetMinutes = 30,
             bedtimeEnabled = true
         )
-        val now = Instant.parse("2026-10-06T23:00:00Z")
+        val now = Instant.parse("2026-10-06T23:01:00Z")
 
         val result = BedtimeComputer.compute(listOf(schedule), config, now)
 

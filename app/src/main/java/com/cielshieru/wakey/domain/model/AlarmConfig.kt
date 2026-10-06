@@ -9,7 +9,8 @@ data class AlarmConfig(
     val bedtimeReminderOffsetMinutes: Int = 30,
     val externalEventBufferMinutes: Int = 30,
     val externalEventEnabled: Boolean = false,
-    val bedtimeEnabled: Boolean = false
+    val bedtimeEnabled: Boolean = false,
+    val baseUrl: String = "http://localhost:42748"
 ) {
     companion object {
         fun validate(config: AlarmConfig): AlarmConfig = config.copy(

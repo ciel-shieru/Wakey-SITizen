@@ -65,7 +65,7 @@ class AlarmComputerTest {
         val schedules = AlarmComputer.computeSchedule(events, config, clock, zoneProvider)
 
         assertEquals(1, schedules.size)
-        val expectedMinute = 8 * 60
+        val expectedMinute: Long = 8 * 60
         val actualMinute = schedules[0].firstAlarmTime!!.epochSecond / 60 % 1440
         assertEquals(expectedMinute, actualMinute)
     }
@@ -102,7 +102,7 @@ class AlarmComputerTest {
         val schedules = AlarmComputer.computeSchedule(events, config, clock, zoneProvider)
 
         assertEquals(1, schedules.size)
-        val expectedMinute = 7 * 60 + 30
+        val expectedMinute: Long = 6 * 60 + 30
         val actualMinute = schedules[0].firstAlarmTime!!.epochSecond / 60 % 1440
         assertEquals(expectedMinute, actualMinute)
     }

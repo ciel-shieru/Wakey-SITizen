@@ -25,7 +25,7 @@ class TimetableRepositoryImpl(
         } ?: emptyList()
     }
 
-    suspend fun refreshTimetable(): Result<List<TimetableEvent>> {
+    override suspend fun refreshTimetable(): Result<List<TimetableEvent>> {
         val result = timetableClient.fetch()
         return when (result) {
             is TimetableClient.Result.Success -> {

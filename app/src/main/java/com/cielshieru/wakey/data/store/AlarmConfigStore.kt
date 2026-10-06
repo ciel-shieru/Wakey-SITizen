@@ -20,6 +20,7 @@ object AlarmConfigStore {
     private val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
     private val EXTERNAL_EVENTS_ENABLED = booleanPreferencesKey("external_events_enabled")
     private val BEDTIME_ENABLED = booleanPreferencesKey("bedtime_enabled")
+    private val BASE_URL = stringPreferencesKey("base_url")
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
         AlarmConfig(
@@ -31,7 +32,8 @@ object AlarmConfigStore {
             bedtimeReminderOffsetMinutes = prefs[BEDTIME_OFFSET] ?: 30,
             externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: 30,
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
-            bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false
+            bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
+            baseUrl = prefs[BASE_URL] ?: "http://localhost:42748"
         )
     }
 
@@ -46,6 +48,7 @@ object AlarmConfigStore {
             prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[BEDTIME_ENABLED] = config.bedtimeEnabled
+            prefs[BASE_URL] = config.baseUrl
         }
     }
 }

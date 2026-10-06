@@ -1,6 +1,7 @@
 package com.cielshieru.wakey.fakes
 
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import kotlinx.coroutines.flow.Flow
@@ -14,8 +15,12 @@ class FakeAlarmRepository : AlarmRepository {
     private val _overrides = MutableStateFlow<List<ManualOverride>>(emptyList())
     override val overrides: Flow<List<ManualOverride>> = _overrides.asStateFlow()
 
+    private val _schedules = MutableStateFlow<List<AlarmSchedule>?>(null)
+    override val schedules: Flow<List<AlarmSchedule>?> = _schedules.asStateFlow()
+
     var savedConfig: AlarmConfig? = null
     var savedOverrides: List<ManualOverride>? = null
+    var savedSchedules: List<AlarmSchedule>? = null
 
     override suspend fun saveConfig(config: AlarmConfig) {
         savedConfig = config
@@ -25,6 +30,11 @@ class FakeAlarmRepository : AlarmRepository {
         val current = _overrides.value.toMutableList()
         current.add(override)
         _overrides.value = current
+    }
+
+    override suspend fun saveSchedules(schedules: List<AlarmSchedule>) {
+        savedSchedules = schedules
+        _schedules.value = schedules
     }
 
     override suspend fun clearExpiredOverrides(): Int {

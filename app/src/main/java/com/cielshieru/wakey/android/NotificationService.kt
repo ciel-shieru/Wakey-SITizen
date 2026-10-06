@@ -65,11 +65,21 @@ object NotificationService {
     }
 
     /** Posts the wake-up alarm notification on the [CHANNEL_ALARMS] channel. */
-    fun showAlarmNotification(context: Context) {
+    fun showAlarmNotification(
+        context: Context,
+        alarmIndex: Int? = null,
+        alarmDay: String? = null
+    ) {
+        val contentText = if (alarmIndex != null && alarmDay != null) {
+            "Alarm $alarmIndex for $alarmDay is ringing now."
+        } else {
+            "Your alarm is ringing now."
+        }
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ALARMS)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("Time to wake up!")
-            .setContentText("Your alarm is ringing now.")
+            .setContentText(contentText)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(mainActivityPendingIntent(context))

@@ -20,8 +20,11 @@ class AlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            AlarmService.ACTION_WAKE_UP_ALARM ->
-                NotificationService.showAlarmNotification(context)
+            AlarmService.ACTION_WAKE_UP_ALARM -> {
+                val alarmIndex = intent.getIntExtra(AlarmService.EXTRA_ALARM_INDEX, -1)
+                val alarmDay = intent.getStringExtra(AlarmService.EXTRA_ALARM_DAY)
+                NotificationService.showAlarmNotification(context, alarmIndex.takeIf { it >= 0 }, alarmDay)
+            }
 
             AlarmService.ACTION_BEDTIME_REMINDER ->
                 NotificationService.showBedtimeNotification(context)
