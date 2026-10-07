@@ -12,14 +12,18 @@ class App : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
 
+    private val _workManagerConfiguration: Configuration by lazy {
+        Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+    }
+
     override fun onCreate() {
         super.onCreate()
         // ADR-0008: create the notification channels up front (idempotent).
         NotificationService.initChannels(this)
     }
 
-    override val workManagerConfiguration: Configuration =
-        Configuration.Builder()
-            .setWorkerFactory(workerFactory)
-            .build()
+    override val workManagerConfiguration: Configuration
+        get() = _workManagerConfiguration
 }
