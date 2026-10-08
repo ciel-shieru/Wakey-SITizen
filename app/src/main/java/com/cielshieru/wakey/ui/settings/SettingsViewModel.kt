@@ -168,23 +168,30 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(baseUrl = value) }
     }
 
-    fun setPermissionGranted(granted: Boolean) {
+    fun setPermissionGranted(permissionName: String, granted: Boolean) {
         viewModelScope.launch {
             datastore.edit { prefs ->
-                prefs[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] = !granted
-                prefs[PermissionStore.POST_NOTIFICATIONS_DENIED_KEY] = !granted
+                if (permissionName == "READ_CALENDAR") {
+                    prefs[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] = !granted
+                } else if (permissionName == "POST_NOTIFICATIONS") {
+                    prefs[PermissionStore.POST_NOTIFICATIONS_DENIED_KEY] = !granted
+                }
             }
         }
         _uiState.update {
-            val updatedCalendarPicker = it.calendarPicker.copy(
-                permissionGranted = granted,
-                permissionDenied = !granted
-            )
+            val updatedCalendarPicker = if (permissionName == "READ_CALENDAR") {
+                it.calendarPicker.copy(
+                    permissionGranted = granted,
+                    permissionDenied = !granted
+                )
+            } else {
+                it.calendarPicker
+            }
             val updatedPermissionStatus = it.permissionStatus.map { entry ->
-                when (entry.permission) {
-                    "READ_CALENDAR" -> entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
-                    "POST_NOTIFICATIONS" -> entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
-                    else -> entry
+                if (entry.permission == permissionName) {
+                    entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
+                } else {
+                    entry
                 }
             }
             it.copy(

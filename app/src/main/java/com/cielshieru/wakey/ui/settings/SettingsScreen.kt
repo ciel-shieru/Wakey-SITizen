@@ -107,7 +107,7 @@ fun SettingsScreen(
 
     LaunchedEffect(uiState.externalEnabled, uiState.discoveryMode) {
         if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-            viewModel.setPermissionGranted(false)
+            viewModel.setPermissionGranted("READ_CALENDAR", false)
         }
         if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.BaseUrl) {
             showCalendarPicker = true
@@ -128,7 +128,7 @@ fun SettingsScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        viewModel.setPermissionGranted(granted)
+        viewModel.setPermissionGranted("READ_CALENDAR", granted)
     }
 
     Scaffold(
@@ -263,6 +263,41 @@ fun SettingsScreen(
                 )
             }
 
+            if (uiState.bedtimeEnabled && !postNotificationsGranted) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Bedtime reminders require notification permission.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
+                            Text("Open App Settings")
+                        }
+                    }
+                }
+            }
+
             Text("External Events", style = MaterialTheme.typography.titleLarge)
 
             Row(
@@ -330,41 +365,6 @@ fun SettingsScreen(
             ) {
                 items(uiState.permissionStatus, key = { it.permission }) { entry ->
                     PermissionCard(entry) { viewModel.openAppSettings(context) }
-                }
-            }
-
-            if (uiState.bedtimeEnabled && !postNotificationsGranted) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "Bedtime reminders require notification permission.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
-                            Text("Open App Settings")
-                        }
-                    }
                 }
             }
         }
