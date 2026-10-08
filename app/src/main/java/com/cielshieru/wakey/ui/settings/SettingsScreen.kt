@@ -164,14 +164,18 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             Text("Alarm Offsets", style = MaterialTheme.typography.titleLarge)
 
             OutlinedTextField(
@@ -379,13 +383,15 @@ fun SettingsScreen(
                 onDismissRequest = { viewModel.cancelModeSwitch() },
                 title = { Text("Switch Discovery Mode") },
                 text = {
-                    Text(
-                        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-                            "Switching to Device Calendar mode will stop using your SIT-ICS-Go base URL. Timetable data will be read from your device calendar instead."
-                        } else {
-                            "Switching to Base URL mode will stop using your device calendar. Timetable data will be fetched from your SIT-ICS-Go server."
-                        }
-                    )
+                    Column {
+                        Text(
+                            if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+                                "Switching to Device Calendar mode will stop using your SIT-ICS-Go base URL. Timetable data will be read from your device calendar instead."
+                            } else {
+                                "Switching to Base URL mode will stop using your device calendar. Timetable data will be fetched from your SIT-ICS-Go server. Your calendar selection will be reset."
+                            }
+                        )
+                    }
                 },
                 confirmButton = {
                     TextButton(onClick = { viewModel.confirmModeSwitch() }) {
@@ -398,6 +404,7 @@ fun SettingsScreen(
                     }
                 }
             )
+        }
         }
     }
 }
