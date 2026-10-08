@@ -29,7 +29,8 @@ import kotlinx.coroutines.withContext
 data class CalendarEntry(
     val id: String,
     val displayName: String,
-    val accountName: String
+    val accountName: String,
+    val accountType: String
 )
 
 suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withContext(Dispatchers.IO) {
@@ -37,8 +38,9 @@ suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withCo
     val uri = CalendarContract.Calendars.CONTENT_URI
     val projection = arrayOf(
         CalendarContract.Calendars._ID,
-        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
-        CalendarContract.Calendars.ACCOUNT_NAME
+        "display_name",
+        CalendarContract.Calendars.ACCOUNT_NAME,
+        CalendarContract.Calendars.ACCOUNT_TYPE
     )
     val selection = "access_level >= ?"
     val selectionArgs = arrayOf("1")
@@ -48,10 +50,11 @@ suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withCo
     cursor.use { c ->
         val calendars = mutableListOf<CalendarEntry>()
         while (c.moveToNext()) {
-            val id = c.getString(0) ?: continue
+            val id = c.getInt(0).toString()
             val displayName = c.getString(1).orEmpty()
             val accountName = c.getString(2).orEmpty()
-            calendars.add(CalendarEntry(id, displayName, accountName))
+            val accountType = c.getString(3).orEmpty()
+            calendars.add(CalendarEntry(id, displayName, accountName, accountType))
         }
         calendars
     }

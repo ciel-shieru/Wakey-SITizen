@@ -3,12 +3,10 @@ package com.cielshieru.wakey.ui.settings
 import android.Manifest.permission.READ_CALENDAR
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -44,6 +42,7 @@ private fun ValidationSupportingText(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarPicker(
     calendars: List<CalendarEntry>,
@@ -59,11 +58,6 @@ fun CalendarPicker(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onToggleSelection(calendar.id) }
-                    .toggleable(
-                        value = calendar.id in selectedIds,
-                        onValueChange = { onToggleSelection(calendar.id) }
-                    )
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
