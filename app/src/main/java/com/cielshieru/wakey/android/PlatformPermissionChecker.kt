@@ -7,8 +7,9 @@ import androidx.core.content.ContextCompat
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.PermissionChecker
+import javax.inject.Inject
 
-class PlatformPermissionChecker : PermissionChecker {
+class PlatformPermissionChecker @Inject constructor() : PermissionChecker {
     override fun checkNotificationsPermission(context: Context): Boolean {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }

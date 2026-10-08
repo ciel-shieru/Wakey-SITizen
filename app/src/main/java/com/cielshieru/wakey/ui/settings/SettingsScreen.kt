@@ -1,8 +1,5 @@
 package com.cielshieru.wakey.ui.settings
 
-import android.Manifest.permission.READ_CALENDAR
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -105,26 +102,20 @@ fun SettingsScreen(
         .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
         ?.status == PermissionStatus.Granted
 
-    LaunchedEffect(uiState.externalEnabled) {
-        if (uiState.externalEnabled && !showCalendarPicker) {
-            showCalendarPicker = true
+    LaunchedEffect(uiState.externalEnabled, uiState.discoveryMode) {
+        if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+            if (!showCalendarPicker) {
+                showCalendarPicker = true
+            }
+            if (uiState.calendarPicker.permissionGranted) {
+                val calendars = getReadableCalendars(context)
+                viewModel.loadCalendars(calendars)
+            }
         }
     }
 
     LaunchedEffect(Unit) {
         viewModel.refreshPermissionState(context)
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        viewModel.setPermissionGranted(granted)
-    }
-
-    LaunchedEffect(uiState.discoveryMode) {
-        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-            viewModel.setPermissionGranted(false)
-        }
     }
 
     LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled) {
@@ -285,7 +276,7 @@ fun SettingsScreen(
 
                 if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
                     Button(
-                        onClick = { permissionLauncher.launch(READ_CALENDAR) },
+                        onClick = { viewModel.openAppSettings(context) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Grant Calendar Permission")

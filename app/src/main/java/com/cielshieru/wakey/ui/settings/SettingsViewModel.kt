@@ -46,11 +46,6 @@ data class CalendarPickerUiState(
     val permissionGranted: Boolean = false
 )
 
-sealed interface CalendarPermissionEvent {
-    object Granted : CalendarPermissionEvent
-    object Denied : CalendarPermissionEvent
-}
-
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
@@ -59,9 +54,6 @@ class SettingsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
-
-    private val _permissionEvent = MutableSharedFlow<CalendarPermissionEvent>(extraBufferCapacity = 1)
-    val permissionEvent: SharedFlow<CalendarPermissionEvent> = _permissionEvent
 
     private val _configSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val configSaved: SharedFlow<Unit> = _configSaved
@@ -158,21 +150,6 @@ class SettingsViewModel @Inject constructor(
 
     fun updateBaseUrl(value: String) {
         _uiState.update { it.copy(baseUrl = value) }
-    }
-
-    fun setPermissionGranted(granted: Boolean) {
-        _uiState.update {
-            it.copy(
-                calendarPicker = it.calendarPicker.copy(permissionGranted = granted)
-            )
-        }
-        viewModelScope.launch {
-            if (granted) {
-                _permissionEvent.emit(CalendarPermissionEvent.Granted)
-            } else {
-                _permissionEvent.emit(CalendarPermissionEvent.Denied)
-            }
-        }
     }
 
     fun loadCalendars(calendars: List<CalendarEntry>) {

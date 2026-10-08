@@ -104,5 +104,5 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun providePermissionChecker(): PermissionChecker = PlatformPermissionChecker()
+    fun providePermissionChecker(pc: PlatformPermissionChecker): PermissionChecker = pc
 }
