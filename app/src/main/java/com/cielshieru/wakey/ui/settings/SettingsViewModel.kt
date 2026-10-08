@@ -163,6 +163,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             datastore.edit { prefs ->
                 prefs[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] = !granted
+                prefs[PermissionStore.POST_NOTIFICATIONS_DENIED_KEY] = !granted
             }
         }
         _uiState.update {
@@ -171,10 +172,10 @@ class SettingsViewModel @Inject constructor(
                 permissionDenied = !granted
             )
             val updatedPermissionStatus = it.permissionStatus.map { entry ->
-                if (entry.permission == "READ_CALENDAR") {
-                    entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
-                } else {
-                    entry
+                when (entry.permission) {
+                    "READ_CALENDAR" -> entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
+                    "POST_NOTIFICATIONS" -> entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
+                    else -> entry
                 }
             }
             it.copy(
@@ -234,7 +235,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun refreshPermissionState(context: Context) {
-        _uiState.update { it.copy(permissionStatus = permissionChecker.getAllPermissionEntries(context)) }
+        viewModelScope.launch {
+            val entries = permissionChecker.getAllPermissionEntries(context)
+            _uiState.update { it.copy(permissionStatus = entries) }
+        }
     }
 
     fun openAppSettings(context: Context) {

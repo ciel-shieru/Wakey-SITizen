@@ -12,7 +12,6 @@ import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.PermissionChecker
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 class PlatformPermissionChecker @Inject constructor(
@@ -29,10 +28,11 @@ class PlatformPermissionChecker @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    override fun getAllPermissionEntries(context: Context): List<PermissionEntry> {
+    override suspend fun getAllPermissionEntries(context: Context): List<PermissionEntry> {
         val notificationsGranted = checkNotificationsPermission(context)
         val calendarGranted = checkCalendarPermission(context)
-        val calendarDenied = runBlocking { datastore.data.first()[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] } ?: false
+        val calendarDenied = datastore.data.first()[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] ?: false
+        val notificationsDenied = datastore.data.first()[PermissionStore.POST_NOTIFICATIONS_DENIED_KEY] ?: false
 
         return listOf(
             PermissionEntry(
@@ -45,7 +45,7 @@ class PlatformPermissionChecker @Inject constructor(
             PermissionEntry(
                 permission = "POST_NOTIFICATIONS",
                 featureName = "Bedtime reminders",
-                status = determineRuntimePermissionStatus(notificationsGranted),
+                status = determineNotificationsPermissionStatus(notificationsGranted, notificationsDenied),
                 justification = "Bedtime reminder and alarm-fire notifications",
                 isRuntimePermission = true
             ),
@@ -73,9 +73,11 @@ class PlatformPermissionChecker @Inject constructor(
         )
     }
 
-    private fun determineRuntimePermissionStatus(granted: Boolean): PermissionStatus {
+    private fun determineNotificationsPermissionStatus(granted: Boolean, explicitlyDenied: Boolean): PermissionStatus {
         return if (granted) {
             PermissionStatus.Granted
+        } else if (explicitlyDenied) {
+            PermissionStatus.Denied
         } else {
             PermissionStatus.Required
         }
