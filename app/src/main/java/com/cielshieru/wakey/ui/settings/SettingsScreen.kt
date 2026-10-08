@@ -1,5 +1,8 @@
 package com.cielshieru.wakey.ui.settings
 
+import android.Manifest.permission.READ_CALENDAR
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -122,6 +125,18 @@ fun SettingsScreen(
         if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.externalEnabled) {
             val calendars = getReadableCalendars(context)
             viewModel.loadCalendars(calendars)
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.setPermissionGranted(granted)
+    }
+
+    LaunchedEffect(uiState.discoveryMode) {
+        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+            viewModel.setPermissionGranted(false)
         }
     }
 
@@ -275,11 +290,25 @@ fun SettingsScreen(
                 )
 
                 if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
-                    Button(
-                        onClick = { viewModel.openAppSettings(context) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Grant Calendar Permission")
+                    if (uiState.calendarPicker.permissionDenied) {
+                        Text(
+                            text = "Calendar permission denied — enable in app settings",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        OutlinedButton(
+                            onClick = { viewModel.openAppSettings(context) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open App Settings")
+                        }
+                    } else {
+                        Button(
+                            onClick = { permissionLauncher.launch(READ_CALENDAR) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Calendar Permission")
+                        }
                     }
                 } else if (uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
                     Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)

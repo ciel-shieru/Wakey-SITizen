@@ -43,7 +43,8 @@ data class CalendarPickerUiState(
     val calendars: List<CalendarEntry> = emptyList(),
     val selectedIds: Set<String> = emptySet(),
     val isLoading: Boolean = false,
-    val permissionGranted: Boolean = false
+    val permissionGranted: Boolean = false,
+    val permissionDenied: Boolean = false
 )
 
 @HiltViewModel
@@ -150,6 +151,17 @@ class SettingsViewModel @Inject constructor(
 
     fun updateBaseUrl(value: String) {
         _uiState.update { it.copy(baseUrl = value) }
+    }
+
+    fun setPermissionGranted(granted: Boolean) {
+        _uiState.update {
+            it.copy(
+                calendarPicker = it.calendarPicker.copy(
+                    permissionGranted = granted,
+                    permissionDenied = !granted
+                )
+            )
+        }
     }
 
     fun loadCalendars(calendars: List<CalendarEntry>) {
