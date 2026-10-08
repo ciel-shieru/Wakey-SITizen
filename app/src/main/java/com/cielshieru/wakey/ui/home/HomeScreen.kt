@@ -4,8 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material3.*
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -20,6 +24,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showTimePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -91,6 +96,12 @@ fun HomeScreen(
                     icon = { Icon(Icons.Default.Schedule, "Snooze 60 min") },
                     text = { Text("60m") }
                 )
+                ExtendedFloatingActionButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = { showTimePicker = true },
+                    icon = { Icon(Icons.Default.Alarm, "Set custom time") },
+                    text = { Text("Set Time") }
+                )
             }
 
             OutlinedButton(
@@ -100,6 +111,43 @@ fun HomeScreen(
                 Icon(Icons.Default.Cancel, "Skip tomorrow")
                 Spacer(Modifier.width(8.dp))
                 Text("Skip Tomorrow")
+            }
+
+            if (showTimePicker) {
+                val timePickerState = rememberTimePickerState()
+                ModalBottomSheet(
+                    onDismissRequest = { showTimePicker = false }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        TimePicker(
+                            state = timePickerState,
+                            colors = TimePickerDefaults.colors(
+                                clockDialSelectedContentColor = MaterialTheme.colorScheme.onSurface,
+                                clockDialUnselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(onClick = { showTimePicker = false }) {
+                                Text("Cancel")
+                            }
+                            TextButton(onClick = {
+                                viewModel.setCustomTime(timePickerState.hour, timePickerState.minute)
+                                showTimePicker = false
+                            }) {
+                                Text("Set")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
