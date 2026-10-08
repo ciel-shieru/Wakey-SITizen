@@ -1,18 +1,26 @@
 package com.cielshieru.wakey.ui.navigation
 
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.cielshieru.wakey.ui.home.HomeScreen
 import com.cielshieru.wakey.ui.settings.SettingsScreen
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WakeyNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = androidx.navigation.compose.rememberNavController()
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
     NavHost(
         navController = navController,
         startDestination = Route.Home.route,
@@ -22,7 +30,20 @@ fun WakeyNavHost(
             HomeScreen(onNavigateToSettings = { navController.navigate(Route.Settings.route) })
         }
         composable(Route.Settings.route) {
-            SettingsScreen(onNavigateBack = { navController.popBackStack() })
+            Column(modifier = Modifier.fillMaxSize()) {
+                SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onShowSnackbar = { message ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    }
+                )
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }

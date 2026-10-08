@@ -1,7 +1,14 @@
 package com.cielshieru.wakey.ui.settings
 
+import android.Manifest.permission.READ_CALENDAR
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -9,18 +16,94 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cielshieru.wakey.data.calendar.CalendarEntry
+import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+
+@Composable
+fun CalendarPicker(
+    calendars: List<CalendarEntry>,
+    selectedIds: Set<String>,
+    onToggleSelection: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        items(calendars, key = { it.id }) { calendar ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggleSelection(calendar.id) }
+                    .toggleable(
+                        value = calendar.id in selectedIds,
+                        onValueChange = { onToggleSelection(calendar.id) }
+                    )
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Checkbox(
+                    checked = calendar.id in selectedIds,
+                    onCheckedChange = { onToggleSelection(calendar.id) }
+                )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = calendar.displayName,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        text = calendar.accountName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onShowSnackbar: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var showCalendarPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.externalEnabled) {
+        if (uiState.externalEnabled && !showCalendarPicker) {
+            showCalendarPicker = true
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.setPermissionGranted(granted)
+    }
+
+    LaunchedEffect(uiState.discoveryMode) {
+        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+            viewModel.setPermissionGranted(false)
+        }
+    }
+
+    LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled) {
+        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.externalEnabled) {
+            val calendars = getReadableCalendars(context)
+            viewModel.loadCalendars(calendars)
+        }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -33,7 +116,13 @@ fun SettingsScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = viewModel::saveConfig) {
+                    TextButton(onClick = {
+                        if (uiState.externalEnabled && uiState.calendarPicker.selectedIds.isEmpty()) {
+                            onShowSnackbar("Select at least one calendar for external events")
+                            return@TextButton
+                        }
+                        viewModel.saveConfig()
+                    }) {
                         Text("Save")
                     }
                 }
@@ -159,6 +248,27 @@ fun SettingsScreen(
                     label = { Text("Buffer minutes (5-120)") },
                     singleLine = true
                 )
+
+                if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
+                    Button(
+                        onClick = { permissionLauncher.launch(READ_CALENDAR) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Grant Calendar Permission")
+                    }
+                } else if (uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
+                    Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)
+                } else if (uiState.calendarPicker.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                } else if (showCalendarPicker) {
+                    Text("Select Calendars", style = MaterialTheme.typography.titleMedium)
+                    CalendarPicker(
+                        calendars = uiState.calendarPicker.calendars,
+                        selectedIds = uiState.calendarPicker.selectedIds,
+                        onToggleSelection = viewModel::toggleCalendarSelection,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }

@@ -1,6 +1,7 @@
 package com.cielshieru.wakey.data.calendar
 
 import android.content.ContentResolver
+import android.content.Context
 import android.provider.CalendarContract
 import com.cielshieru.wakey.domain.model.ExternalEvent
 import com.cielshieru.wakey.domain.port.CalendarEventSource
@@ -25,6 +26,37 @@ import kotlinx.coroutines.withContext
  * Requires `READ_CALENDAR` (ADR-0008); callers are responsible for only
  * invoking this once the permission is granted.
  */
+data class CalendarEntry(
+    val id: String,
+    val displayName: String,
+    val accountName: String
+)
+
+suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withContext(Dispatchers.IO) {
+    val resolver = context.contentResolver
+    val uri = CalendarContract.Calendars.CONTENT_URI
+    val projection = arrayOf(
+        CalendarContract.Calendars._ID,
+        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
+        CalendarContract.Calendars.ACCOUNT_NAME
+    )
+    val selection = "access_level >= ?"
+    val selectionArgs = arrayOf("1")
+
+    val cursor = resolver.query(uri, projection, selection, selectionArgs, null) ?: return@withContext emptyList()
+
+    cursor.use { c ->
+        val calendars = mutableListOf<CalendarEntry>()
+        while (c.moveToNext()) {
+            val id = c.getString(0) ?: continue
+            val displayName = c.getString(1).orEmpty()
+            val accountName = c.getString(2).orEmpty()
+            calendars.add(CalendarEntry(id, displayName, accountName))
+        }
+        calendars
+    }
+}
+
 class SystemCalendarSource(
     private val contentResolver: ContentResolver,
     private val zone: ZoneId = ZoneId.systemDefault()
@@ -84,10 +116,13 @@ class SystemCalendarSource(
     }
 
     private companion object {
-        const val COL_TITLE = 0
-        const val COL_DTSTART = 1
-        const val COL_DTEND = 2
-        const val COL_LOCATION = 3
-        const val COL_ALL_DAY = 4
+        const val COL_ID = 0
+        const val COL_DISPLAY_NAME = 1
+        const val COL_ACCOUNT_NAME = 2
+        const val COL_TITLE = 3
+        const val COL_DTSTART = 4
+        const val COL_DTEND = 5
+        const val COL_LOCATION = 6
+        const val COL_ALL_DAY = 7
     }
 }
