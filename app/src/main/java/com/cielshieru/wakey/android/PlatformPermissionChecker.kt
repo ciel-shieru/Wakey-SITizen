@@ -1,15 +1,23 @@
 package com.cielshieru.wakey.android
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.PermissionChecker
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
-class PlatformPermissionChecker @Inject constructor() : PermissionChecker {
+class PlatformPermissionChecker @Inject constructor(
+    private val datastore: DataStore<Preferences>
+) : PermissionChecker {
     override fun checkNotificationsPermission(context: Context): Boolean {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
@@ -24,6 +32,7 @@ class PlatformPermissionChecker @Inject constructor() : PermissionChecker {
     override fun getAllPermissionEntries(context: Context): List<PermissionEntry> {
         val notificationsGranted = checkNotificationsPermission(context)
         val calendarGranted = checkCalendarPermission(context)
+        val calendarDenied = runBlocking { datastore.data.first()[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] } ?: false
 
         return listOf(
             PermissionEntry(
@@ -57,7 +66,7 @@ class PlatformPermissionChecker @Inject constructor() : PermissionChecker {
             PermissionEntry(
                 permission = "READ_CALENDAR",
                 featureName = "External events",
-                status = determineRuntimePermissionStatus(calendarGranted),
+                status = determineCalendarPermissionStatus(calendarGranted, calendarDenied),
                 justification = "Reads calendar events for external schedule adjustment",
                 isRuntimePermission = true
             )
@@ -67,6 +76,16 @@ class PlatformPermissionChecker @Inject constructor() : PermissionChecker {
     private fun determineRuntimePermissionStatus(granted: Boolean): PermissionStatus {
         return if (granted) {
             PermissionStatus.Granted
+        } else {
+            PermissionStatus.Required
+        }
+    }
+
+    private fun determineCalendarPermissionStatus(granted: Boolean, explicitlyDenied: Boolean): PermissionStatus {
+        return if (granted) {
+            PermissionStatus.Granted
+        } else if (explicitlyDenied) {
+            PermissionStatus.Denied
         } else {
             PermissionStatus.Required
         }

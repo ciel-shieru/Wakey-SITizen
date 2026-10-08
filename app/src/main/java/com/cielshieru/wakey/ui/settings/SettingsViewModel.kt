@@ -1,11 +1,20 @@
 package com.cielshieru.wakey.ui.settings
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.data.calendar.CalendarEntry
+import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
+import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.PermissionChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,10 +23,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -50,7 +55,8 @@ data class CalendarPickerUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
-    private val permissionChecker: PermissionChecker
+    private val permissionChecker: PermissionChecker,
+    private val datastore: DataStore<Preferences>
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -154,12 +160,26 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setPermissionGranted(granted: Boolean) {
+        viewModelScope.launch {
+            datastore.edit { prefs ->
+                prefs[PermissionStore.CALENDAR_PERMISSION_DENIED_KEY] = !granted
+            }
+        }
         _uiState.update {
+            val updatedCalendarPicker = it.calendarPicker.copy(
+                permissionGranted = granted,
+                permissionDenied = !granted
+            )
+            val updatedPermissionStatus = it.permissionStatus.map { entry ->
+                if (entry.permission == "READ_CALENDAR") {
+                    entry.copy(status = if (granted) PermissionStatus.Granted else PermissionStatus.Denied)
+                } else {
+                    entry
+                }
+            }
             it.copy(
-                calendarPicker = it.calendarPicker.copy(
-                    permissionGranted = granted,
-                    permissionDenied = !granted
-                )
+                calendarPicker = updatedCalendarPicker,
+                permissionStatus = updatedPermissionStatus
             )
         }
     }

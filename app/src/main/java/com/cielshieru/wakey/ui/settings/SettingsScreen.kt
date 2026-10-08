@@ -462,7 +462,7 @@ fun PermissionCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (entry.status == PermissionStatus.Denied || entry.status == PermissionStatus.Required) {
+            if (entry.isRuntimePermission && (entry.status == PermissionStatus.Denied || entry.status == PermissionStatus.Required)) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = onOpenSettings) {
                     Text("Open App Settings")
