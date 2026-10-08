@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +35,8 @@ data class SettingsUiState(
     val baseUrl: String = "",
     val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl,
     val calendarPicker: CalendarPickerUiState = CalendarPickerUiState(),
-    val permissionStatus: List<PermissionEntry> = emptyList()
+    val permissionStatus: List<PermissionEntry> = emptyList(),
+    val showModeSwitchDialog: Boolean = false
 )
 
 data class CalendarPickerUiState(
@@ -128,15 +133,24 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun toggleDiscoveryMode() {
+        _uiState.update { it.copy(showModeSwitchDialog = true) }
+    }
+
+    fun confirmModeSwitch() {
         _uiState.update {
             it.copy(
                 discoveryMode = if (it.discoveryMode == DiscoveryMode.BaseUrl) {
                     DiscoveryMode.DeviceCalendar
                 } else {
                     DiscoveryMode.BaseUrl
-                }
+                },
+                showModeSwitchDialog = false
             )
         }
+    }
+
+    fun cancelModeSwitch() {
+        _uiState.update { it.copy(showModeSwitchDialog = false) }
     }
 
     fun updateBaseUrl(value: String) {
@@ -206,14 +220,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun refreshPermissionState(context: android.content.Context) {
+    fun refreshPermissionState(context: Context) {
         _uiState.update { it.copy(permissionStatus = permissionChecker.getAllPermissionEntries(context)) }
     }
 
-    fun openAppSettings(context: android.content.Context) {
-        val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+    fun openAppSettings(context: Context) {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
     }

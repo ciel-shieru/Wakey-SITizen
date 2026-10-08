@@ -101,6 +101,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showCalendarPicker by remember { mutableStateOf(false) }
 
+    val postNotificationsGranted = uiState.permissionStatus
+        .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
+        ?.status == PermissionStatus.Granted
+
     LaunchedEffect(uiState.externalEnabled) {
         if (uiState.externalEnabled && !showCalendarPicker) {
             showCalendarPicker = true
@@ -311,6 +315,67 @@ fun SettingsScreen(
                     PermissionCard(entry) { viewModel.openAppSettings(context) }
                 }
             }
+
+            if (uiState.bedtimeEnabled && !postNotificationsGranted) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Bedtime reminders require notification permission.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
+                            Text("Open App Settings")
+                        }
+                    }
+                }
+            }
+        }
+
+        if (uiState.showModeSwitchDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelModeSwitch() },
+                title = { Text("Switch Discovery Mode") },
+                text = {
+                    Text(
+                        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+                            "Switching to Device Calendar mode will stop using your SIT-ICS-Go base URL. Timetable data will be read from your device calendar instead."
+                        } else {
+                            "Switching to Base URL mode will stop using your device calendar. Timetable data will be fetched from your SIT-ICS-Go server."
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmModeSwitch() }) {
+                        Text("Switch")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.cancelModeSwitch() }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
