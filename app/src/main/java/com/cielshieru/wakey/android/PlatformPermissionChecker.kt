@@ -27,34 +27,47 @@ class PlatformPermissionChecker : PermissionChecker {
         return listOf(
             PermissionEntry(
                 permission = "USE_EXACT_ALARM",
+                featureName = "Wake-up alarms",
                 status = PermissionStatus.Granted,
                 justification = "Precise wake-up alarm delivery via AlarmManager",
                 isRuntimePermission = false
             ),
             PermissionEntry(
                 permission = "POST_NOTIFICATIONS",
-                status = if (notificationsGranted) PermissionStatus.Granted else PermissionStatus.Denied,
+                featureName = "Bedtime reminders",
+                status = determineRuntimePermissionStatus(notificationsGranted),
                 justification = "Bedtime reminder and alarm-fire notifications",
                 isRuntimePermission = true
             ),
             PermissionEntry(
                 permission = "RECEIVE_BOOT_COMPLETED",
+                featureName = "Boot recovery",
                 status = PermissionStatus.Granted,
                 justification = "Restores alarms after device reboot",
                 isRuntimePermission = false
             ),
             PermissionEntry(
                 permission = "INTERNET",
+                featureName = "Timetable fetch",
                 status = PermissionStatus.Granted,
                 justification = "Fetches timetable from configured SIT-ICS-Go server",
                 isRuntimePermission = false
             ),
             PermissionEntry(
                 permission = "READ_CALENDAR",
-                status = if (calendarGranted) PermissionStatus.Granted else PermissionStatus.Denied,
+                featureName = "External events",
+                status = determineRuntimePermissionStatus(calendarGranted),
                 justification = "Reads calendar events for external schedule adjustment",
                 isRuntimePermission = true
             )
         )
+    }
+
+    private fun determineRuntimePermissionStatus(granted: Boolean): PermissionStatus {
+        return if (granted) {
+            PermissionStatus.Granted
+        } else {
+            PermissionStatus.Required
+        }
     }
 }

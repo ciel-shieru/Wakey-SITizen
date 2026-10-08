@@ -423,7 +423,7 @@ fun PermissionCard(
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = entry.permission,
+                        text = entry.featureName,
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(

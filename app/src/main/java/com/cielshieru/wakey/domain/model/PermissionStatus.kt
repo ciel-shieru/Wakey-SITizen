@@ -8,6 +8,7 @@ sealed interface PermissionStatus {
 
 data class PermissionEntry(
     val permission: String,
+    val featureName: String,
     val status: PermissionStatus,
     val justification: String,
     val isRuntimePermission: Boolean = false
