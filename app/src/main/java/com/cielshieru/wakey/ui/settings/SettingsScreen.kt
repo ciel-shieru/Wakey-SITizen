@@ -178,14 +178,16 @@ fun SettingsScreen(
                 value = uiState.onlineOffset.toString(),
                 onValueChange = { viewModel.updateOnlineOffset(it.toIntOrNull() ?: 60) },
                 label = { Text("Online offset (minutes)") },
-                singleLine = true
+                singleLine = true,
+                supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
             )
 
             OutlinedTextField(
                 value = uiState.campusOffset.toString(),
                 onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
                 label = { Text("Campus offset (minutes)") },
-                singleLine = true
+                singleLine = true,
+                supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
             )
 
             Text("SIT-ICS-Go Discovery", style = MaterialTheme.typography.titleLarge)
