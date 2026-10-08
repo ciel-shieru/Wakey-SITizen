@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.cielshieru.wakey.domain.model.DiscoveryMode
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +62,34 @@ fun SettingsScreen(
                 onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
                 label = { Text("Campus offset (minutes)") },
                 singleLine = true
+            )
+
+            Text("SIT-ICS-Go Discovery", style = MaterialTheme.typography.titleLarge)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Switch(
+                    checked = uiState.discoveryMode == DiscoveryMode.BaseUrl,
+                    onCheckedChange = { viewModel.toggleDiscoveryMode() }
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(if (uiState.discoveryMode == DiscoveryMode.BaseUrl) "Base URL mode" else "Device calendar mode")
+            }
+
+            OutlinedTextField(
+                value = uiState.baseUrl,
+                onValueChange = viewModel::updateBaseUrl,
+                label = { Text("SIT-ICS-Go base URL") },
+                placeholder = { Text("http://localhost:42748") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = {
+                    if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                        Text("Only used in Base URL mode")
+                    }
+                }
             )
 
             Text("Repeat Pattern", style = MaterialTheme.typography.titleLarge)

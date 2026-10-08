@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.DiscoveryMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -21,6 +22,7 @@ object AlarmConfigStore {
     private val EXTERNAL_EVENTS_ENABLED = booleanPreferencesKey("external_events_enabled")
     private val BEDTIME_ENABLED = booleanPreferencesKey("bedtime_enabled")
     private val BASE_URL = stringPreferencesKey("base_url")
+    private val DISCOVERY_MODE = stringPreferencesKey("discovery_mode")
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
         AlarmConfig(
@@ -33,8 +35,16 @@ object AlarmConfigStore {
             externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES,
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
-            baseUrl = prefs[BASE_URL] ?: AlarmConfig.DEFAULT_BASE_URL
+            baseUrl = prefs[BASE_URL] ?: AlarmConfig.DEFAULT_BASE_URL,
+            discoveryMode = parseDiscoveryMode(prefs[DISCOVERY_MODE])
         )
+    }
+
+    private fun parseDiscoveryMode(value: String?): DiscoveryMode {
+        return when (value) {
+            "device_calendar" -> DiscoveryMode.DeviceCalendar
+            else -> DiscoveryMode.BaseUrl
+        }
     }
 
     suspend fun DataStore<Preferences>.saveConfig(config: AlarmConfig) {
@@ -49,6 +59,10 @@ object AlarmConfigStore {
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[BEDTIME_ENABLED] = config.bedtimeEnabled
             prefs[BASE_URL] = config.baseUrl
+            prefs[DISCOVERY_MODE] = when (config.discoveryMode) {
+                DiscoveryMode.BaseUrl -> "base_url"
+                DiscoveryMode.DeviceCalendar -> "device_calendar"
+            }
         }
     }
 }

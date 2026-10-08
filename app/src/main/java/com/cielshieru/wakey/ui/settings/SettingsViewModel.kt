@@ -3,6 +3,7 @@ package com.cielshieru.wakey.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +22,9 @@ data class SettingsUiState(
     val bedtimeOffset: Int = 30,
     val externalBuffer: Int = 30,
     val externalEnabled: Boolean = false,
-    val bedtimeEnabled: Boolean = false
+    val bedtimeEnabled: Boolean = false,
+    val baseUrl: String = "",
+    val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl
 )
 
 @HiltViewModel
@@ -44,7 +47,9 @@ class SettingsViewModel @Inject constructor(
                     bedtimeOffset = config.bedtimeReminderOffsetMinutes,
                     externalBuffer = config.externalEventBufferMinutes,
                     externalEnabled = config.externalEventEnabled,
-                    bedtimeEnabled = config.bedtimeEnabled
+                    bedtimeEnabled = config.bedtimeEnabled,
+                    baseUrl = config.baseUrl,
+                    discoveryMode = config.discoveryMode
                 )
             }
         }
@@ -86,6 +91,22 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(bedtimeEnabled = enabled) }
     }
 
+    fun toggleDiscoveryMode() {
+        _uiState.update {
+            it.copy(
+                discoveryMode = if (it.discoveryMode == DiscoveryMode.BaseUrl) {
+                    DiscoveryMode.DeviceCalendar
+                } else {
+                    DiscoveryMode.BaseUrl
+                }
+            )
+        }
+    }
+
+    fun updateBaseUrl(value: String) {
+        _uiState.update { it.copy(baseUrl = value) }
+    }
+
     fun saveConfig() {
         viewModelScope.launch {
             val state = _uiState.value
@@ -99,7 +120,9 @@ class SettingsViewModel @Inject constructor(
                     bedtimeReminderOffsetMinutes = state.bedtimeOffset,
                     externalEventBufferMinutes = state.externalBuffer,
                     externalEventEnabled = state.externalEnabled,
-                    bedtimeEnabled = state.bedtimeEnabled
+                    bedtimeEnabled = state.bedtimeEnabled,
+                    baseUrl = state.baseUrl,
+                    discoveryMode = state.discoveryMode
                 )
             )
         }

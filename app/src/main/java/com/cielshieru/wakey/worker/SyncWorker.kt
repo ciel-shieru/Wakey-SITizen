@@ -21,6 +21,9 @@ import com.cielshieru.wakey.domain.AdjustForExternalEvents
 import com.cielshieru.wakey.domain.AlarmComputer
 import com.cielshieru.wakey.domain.BedtimeComputer
 import com.cielshieru.wakey.domain.OverrideResolver
+import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.EventKind
 import com.cielshieru.wakey.domain.model.TimetableEvent
 import com.cielshieru.wakey.domain.port.CalendarEventSource
 import com.cielshieru.wakey.domain.port.Clock
@@ -36,8 +39,10 @@ import kotlinx.coroutines.flow.first
  * a one-time request on boot (ADR-0007, boot recovery).
  *
  * Pipeline:
- * 1. **Fetch timetable** — base-URL JSON; on failure fall back to the
- *    last-parsed events from DataStore (stale-while-revalidate).
+ * 1. **Fetch timetable** — base-URL JSON when discovery mode is
+ *    [DiscoveryMode.BaseUrl] (stale-while-revalidate on failure); or
+ *    device calendar events when discovery mode is
+ *    [DiscoveryMode.DeviceCalendar].
  * 2. **Parse and filter** — drop x-site/BrightSpace events (`brightspace-`
  *    course-code prefix).
  * 3. **Compute alarm schedule** — first event per day, smart offset, repeat
@@ -74,7 +79,7 @@ class SyncWorker @AssistedInject constructor(
             val config = dataStore.data.configFlow().first()
 
             // Step 1: fetch timetable (stale-while-revalidate on failure).
-            val events = fetchTimetable()
+            val events = fetchTimetable(config, now, zone)
 
             // Step 2: parse and filter — drop BrightSpace/x-site events.
             val filteredEvents = events.filterNot {
@@ -156,23 +161,56 @@ class SyncWorker @AssistedInject constructor(
     }
 
     /**
-     * Step 1. On a successful fetch the response is persisted to DataStore
-     * and its events returned. On any fetch failure the last-parsed events
+     * Step 1. When discovery mode is [DiscoveryMode.BaseUrl] the timetable is
+     * fetched from the configured base URL; on failure the last-parsed events
      * from DataStore are returned (stale-while-revalidate, ADR-0007) — an
      * empty list if there is none.
+     *
+     * When discovery mode is [DiscoveryMode.DeviceCalendar] events are read
+     * from the device calendar for the upcoming days needed by
+     * [AlarmComputer].
      */
-    private suspend fun fetchTimetable(): List<TimetableEvent> =
-        when (val result = timetableClient.fetch()) {
-            is TimetableClient.Result.Success -> {
-                dataStore.saveTimetable(result.response)
-                result.response.events.map { TimetableEvent.fromJson(it) }
+    private suspend fun fetchTimetable(
+        config: AlarmConfig,
+        now: java.time.Instant,
+        zone: java.time.ZoneId
+    ): List<TimetableEvent> =
+        when (config.discoveryMode) {
+            DiscoveryMode.BaseUrl -> {
+                when (val result = timetableClient.fetch()) {
+                    is TimetableClient.Result.Success -> {
+                        dataStore.saveTimetable(result.response)
+                        result.response.events.map { TimetableEvent.fromJson(it) }
+                    }
+                    is TimetableClient.Result.Error -> {
+                        Log.w(TAG, "Timetable fetch failed; falling back to last-known data", result.cause)
+                        dataStore.data.timetableFlow().first()
+                            ?.events
+                            ?.map { TimetableEvent.fromJson(it) }
+                            ?: emptyList()
+                    }
+                }
             }
-            is TimetableClient.Result.Error -> {
-                Log.w(TAG, "Timetable fetch failed; falling back to last-known data", result.cause)
-                dataStore.data.timetableFlow().first()
-                    ?.events
-                    ?.map { TimetableEvent.fromJson(it) }
-                    ?: emptyList()
+            DiscoveryMode.DeviceCalendar -> {
+                val today = now.atZone(zone).toLocalDate()
+                val daysToFetch = 7
+                (0 until daysToFetch).flatMap { offset ->
+                    calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), emptyList())
+                }
+                    .filterNot { external ->
+                        external.title.startsWith("brightspace-", ignoreCase = true)
+                    }
+                    .map { external ->
+                    TimetableEvent(
+                        courseCode = "cal-${external.title.hashCode().toString(16)}",
+                        title = external.title,
+                        summary = external.title,
+                        dtstart = external.dtstart,
+                        dtend = external.dtend,
+                        location = "",
+                        eventType = EventKind.CAMPUS
+                    )
+                }
             }
         }
 

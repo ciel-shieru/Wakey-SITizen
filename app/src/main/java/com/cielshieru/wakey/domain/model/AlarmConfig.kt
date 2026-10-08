@@ -1,5 +1,10 @@
 package com.cielshieru.wakey.domain.model
 
+sealed interface DiscoveryMode {
+    object BaseUrl : DiscoveryMode
+    object DeviceCalendar : DiscoveryMode
+}
+
 data class AlarmConfig(
     val onlineOffsetMinutes: Int = DEFAULT_ONLINE_OFFSET,
     val campusOffsetMinutes: Int = DEFAULT_CAMPUS_OFFSET,
@@ -10,7 +15,8 @@ data class AlarmConfig(
     val externalEventBufferMinutes: Int = DEFAULT_BUFFER_MINUTES,
     val externalEventEnabled: Boolean = false,
     val bedtimeEnabled: Boolean = false,
-    val baseUrl: String = DEFAULT_BASE_URL
+    val baseUrl: String = DEFAULT_BASE_URL,
+    val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl
 ) {
     companion object {
         const val DEFAULT_ONLINE_OFFSET = 60

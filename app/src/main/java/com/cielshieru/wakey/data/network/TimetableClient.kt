@@ -8,6 +8,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import com.cielshieru.wakey.data.store.JsonConfig
 
@@ -41,7 +42,7 @@ class TimetableClient(
     }
 
     suspend fun fetch(): Result = try {
-        val baseUrl = baseUrlProvider.baseUrl.trim().trimEnd('/')
+        val baseUrl = baseUrlProvider.baseUrl.first().trim().trimEnd('/')
         if (baseUrl.isEmpty()) {
             Result.Error(
                 IllegalStateException("Timetable base URL is not configured")

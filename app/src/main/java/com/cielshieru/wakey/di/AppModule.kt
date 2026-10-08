@@ -3,6 +3,7 @@ package com.cielshieru.wakey.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.work.WorkManager
 import com.cielshieru.wakey.android.AlarmService
@@ -17,9 +18,10 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -49,10 +51,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBaseUrlProvider(): BaseUrlProvider =
-        object : BaseUrlProvider {
-            override val baseUrl: String = AlarmConfig.DEFAULT_BASE_URL
+    fun provideBaseUrlProvider(
+        datastore: DataStore<Preferences>
+    ): BaseUrlProvider = object : BaseUrlProvider {
+        override val baseUrl: Flow<String> = datastore.data.map { prefs ->
+            prefs[stringPreferencesKey("base_url")] ?: AlarmConfig.DEFAULT_BASE_URL
         }
+    }
 
     @Provides
     @Singleton
