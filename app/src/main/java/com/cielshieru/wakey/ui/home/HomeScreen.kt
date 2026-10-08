@@ -91,6 +91,22 @@ fun HomeScreen(
                 }
             }
 
+            uiState.staleDataWarning?.let { text ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Text(
+                        text = text,
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
+            }
+
             Text("Quick Actions", style = MaterialTheme.typography.titleMedium)
 
             Row(

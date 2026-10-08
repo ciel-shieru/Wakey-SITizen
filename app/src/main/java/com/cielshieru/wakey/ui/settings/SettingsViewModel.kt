@@ -63,6 +63,9 @@ class SettingsViewModel @Inject constructor(
     private val _permissionEvent = MutableSharedFlow<CalendarPermissionEvent>(extraBufferCapacity = 1)
     val permissionEvent: SharedFlow<CalendarPermissionEvent> = _permissionEvent
 
+    private val _configSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val configSaved: SharedFlow<Unit> = _configSaved
+
     init {
         viewModelScope.launch {
             alarmRepository.config.collect { config ->
@@ -217,6 +220,7 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode
             )
             alarmRepository.saveConfig(config)
+            _configSaved.emit(Unit)
         }
     }
 

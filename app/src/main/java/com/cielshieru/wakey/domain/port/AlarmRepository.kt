@@ -11,6 +11,7 @@ interface AlarmRepository {
     val overrides: Flow<List<ManualOverride>>
     suspend fun saveOverride(override: ManualOverride)
     val schedules: Flow<List<AlarmSchedule>?>
+    val lastSyncTime: Flow<Long?>
     suspend fun saveSchedules(schedules: List<AlarmSchedule>)
     suspend fun clearExpiredOverrides(): Int
 }

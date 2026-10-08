@@ -23,7 +23,8 @@ import javax.inject.Inject
 data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
     val overrideText: String? = null,
-    val isSyncing: Boolean = false
+    val isSyncing: Boolean = false,
+    val staleDataWarning: String? = null
 ) {
     companion object {
         private val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
@@ -69,9 +70,17 @@ class HomeViewModel @Inject constructor(
                         .maxByOrNull { it.expiresAt.toEpochMilli() }
 
                     val overrideText = when (activeOverride?.type) {
-                        OverrideType.SNOOZE -> "Alarms snoozed"
+                        OverrideType.SNOOZE -> {
+                            val minutes = activeOverride.value.trim().toLongOrNull() ?: 30L
+                            "Alarms snoozed $minutes min"
+                        }
                         OverrideType.SKIP_TOMORROW -> "Tomorrow's alarms skipped"
-                        OverrideType.CUSTOM_TIME -> "Custom alarm time active"
+                        OverrideType.CUSTOM_TIME -> {
+                            val parts = activeOverride.value.split(":")
+                            val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+                            val minute = parts.getOrNull(1)?.toIntOrNull() ?: 0
+                            "Custom alarm time at ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+                        }
                         null -> null
                     }
 
@@ -113,6 +122,16 @@ class HomeViewModel @Inject constructor(
                 .collect { syncing ->
                     _uiState.value = _uiState.value.copy(isSyncing = syncing)
                 }
+        }
+
+        viewModelScope.launch {
+            alarmRepository.lastSyncTime.collect { lastSync ->
+                val warning = lastSync?.let {
+                    val hoursAgo = (Instant.now().toEpochMilli() - it) / 3600000.0
+                    if (hoursAgo > 24) "Data may be stale (last sync ${hoursAgo.toInt()}h ago)" else null
+                }
+                _uiState.value = _uiState.value.copy(staleDataWarning = warning)
+            }
         }
     }
 

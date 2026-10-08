@@ -18,6 +18,9 @@ class FakeAlarmRepository : AlarmRepository {
     private val _schedules = MutableStateFlow<List<AlarmSchedule>?>(null)
     override val schedules: Flow<List<AlarmSchedule>?> = _schedules.asStateFlow()
 
+    private val _lastSyncTime = MutableStateFlow<Long?>(null)
+    override val lastSyncTime: Flow<Long?> = _lastSyncTime
+
     var savedConfig: AlarmConfig? = null
     var savedOverrides: List<ManualOverride>? = null
     var savedSchedules: List<AlarmSchedule>? = null

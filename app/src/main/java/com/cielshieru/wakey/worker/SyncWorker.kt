@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -146,6 +148,7 @@ class SyncWorker @AssistedInject constructor(
 
             // Persist schedules for the UI and for boot recovery.
             dataStore.saveSchedules(finalSchedules)
+            saveLastSyncTime(now)
 
             Log.i(
                 TAG,
@@ -218,5 +221,12 @@ class SyncWorker @AssistedInject constructor(
         private const val TAG = "SyncWorker"
         private const val BRIGHTSPACE_PREFIX = "brightspace-"
         const val BACKOFF_DELAY_MILLIS = 5L * 60 * 1000L // 5 minutes for exponential backoff
+        private val LAST_SYNC_TIME_KEY = stringPreferencesKey("last_sync_time")
+    }
+
+    suspend fun saveLastSyncTime(instant: java.time.Instant) {
+        dataStore.edit { prefs ->
+            prefs[LAST_SYNC_TIME_KEY] = instant.toEpochMilli().toString()
+        }
     }
 }

@@ -101,6 +101,12 @@ fun SettingsScreen(
     val context = LocalContext.current
     var showCalendarPicker by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        viewModel.configSaved.collect {
+            onShowSnackbar("Settings saved")
+        }
+    }
+
     val postNotificationsGranted = uiState.permissionStatus
         .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
         ?.status == PermissionStatus.Granted
