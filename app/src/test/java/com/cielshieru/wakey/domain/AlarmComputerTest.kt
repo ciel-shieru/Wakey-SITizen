@@ -24,7 +24,7 @@ class AlarmComputerTest {
     @Before
     fun setUp() {
         zoneProvider.zone = ZoneOffset.UTC
-        clock.set(java.time.Instant.now())
+        clock.set(java.time.Instant.parse("2026-10-05T00:00:00Z"))
     }
 
     @Test

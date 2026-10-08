@@ -18,7 +18,7 @@ object AlarmComputer {
         zoneProvider: ZoneProvider
     ): List<AlarmSchedule> {
         val zone = zoneProvider.zone
-        val today = LocalDate.now(zone)
+        val today = LocalDate.ofInstant(clock.now(), zone)
         val tomorrow = today.plusDays(1)
 
         // Group events by the calendar day their DTSTART falls in.

@@ -149,7 +149,7 @@ class AlarmService(private val context: Context) {
             context,
             requestCode,
             intent,
-            PendingIntent.FLAG_NO_CREATE
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         ) ?: return
 
         alarmManager.cancel(pendingIntent)
