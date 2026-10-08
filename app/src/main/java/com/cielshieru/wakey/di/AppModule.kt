@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.work.WorkManager
 import com.cielshieru.wakey.android.AlarmService
+import com.cielshieru.wakey.android.PlatformPermissionChecker
 import com.cielshieru.wakey.data.calendar.SystemCalendarSource
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
@@ -100,4 +101,8 @@ object AppModule {
     @Singleton
     fun provideWorkManager(@ApplicationContext context: Context): WorkManager =
         WorkManager.getInstance(context)
+
+    @Provides
+    @Singleton
+    fun providePermissionChecker(): PermissionChecker = PlatformPermissionChecker()
 }

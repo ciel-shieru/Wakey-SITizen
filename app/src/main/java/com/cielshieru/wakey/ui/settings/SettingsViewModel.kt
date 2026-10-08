@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.port.AlarmRepository
+import com.cielshieru.wakey.domain.port.PermissionChecker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +30,8 @@ data class SettingsUiState(
     val bedtimeEnabled: Boolean = false,
     val baseUrl: String = "",
     val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl,
-    val calendarPicker: CalendarPickerUiState = CalendarPickerUiState()
+    val calendarPicker: CalendarPickerUiState = CalendarPickerUiState(),
+    val permissionStatus: List<PermissionEntry> = emptyList()
 )
 
 data class CalendarPickerUiState(
@@ -45,7 +48,8 @@ sealed interface CalendarPermissionEvent {
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val alarmRepository: AlarmRepository
+    private val alarmRepository: AlarmRepository,
+    private val permissionChecker: PermissionChecker
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -200,5 +204,17 @@ class SettingsViewModel @Inject constructor(
             )
             alarmRepository.saveConfig(config)
         }
+    }
+
+    fun refreshPermissionState(context: android.content.Context) {
+        _uiState.update { it.copy(permissionStatus = permissionChecker.getAllPermissionEntries(context)) }
+    }
+
+    fun openAppSettings(context: android.content.Context) {
+        val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = android.net.Uri.parse("package:${context.packageName}")
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.PermissionEntry
+import com.cielshieru.wakey.domain.model.PermissionStatus
 
 @Composable
 fun CalendarPicker(
@@ -84,6 +88,10 @@ fun SettingsScreen(
         if (uiState.externalEnabled && !showCalendarPicker) {
             showCalendarPicker = true
         }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshPermissionState(context)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -268,6 +276,89 @@ fun SettingsScreen(
                         onToggleSelection = viewModel::toggleCalendarSelection,
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+
+            Text("Permissions", style = MaterialTheme.typography.titleLarge)
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(uiState.permissionStatus, key = { it.permission }) { entry ->
+                    PermissionCard(entry) { viewModel.openAppSettings(context) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PermissionCard(
+    entry: PermissionEntry,
+    onOpenSettings: () -> Unit
+) {
+    val icon = when (entry.status) {
+        PermissionStatus.Granted -> Icons.Default.CheckCircle
+        else -> Icons.Default.Warning
+    }
+
+    val statusColor = if (entry.status == PermissionStatus.Granted) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+
+    val statusText = when (entry.status) {
+        PermissionStatus.Granted -> "Granted"
+        PermissionStatus.Denied -> "Denied"
+        PermissionStatus.Required -> "Required"
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = statusColor
+                )
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = entry.permission,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = statusColor
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = entry.justification,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (entry.status == PermissionStatus.Denied || entry.status == PermissionStatus.Required) {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onOpenSettings) {
+                    Text("Open App Settings")
                 }
             }
         }
