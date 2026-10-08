@@ -106,14 +106,18 @@ fun SettingsScreen(
         ?.status == PermissionStatus.Granted
 
     LaunchedEffect(uiState.externalEnabled, uiState.discoveryMode) {
+        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+            viewModel.setPermissionGranted(false)
+        }
         if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-            if (!showCalendarPicker) {
-                showCalendarPicker = true
-            }
-            if (uiState.calendarPicker.permissionGranted) {
-                val calendars = getReadableCalendars(context)
-                viewModel.loadCalendars(calendars)
-            }
+            showCalendarPicker = true
+        }
+    }
+
+    LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled, uiState.discoveryMode) {
+        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.externalEnabled) {
+            val calendars = getReadableCalendars(context)
+            viewModel.loadCalendars(calendars)
         }
     }
 
@@ -121,23 +125,10 @@ fun SettingsScreen(
         viewModel.refreshPermissionState(context)
     }
 
-    LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled) {
-        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.externalEnabled) {
-            val calendars = getReadableCalendars(context)
-            viewModel.loadCalendars(calendars)
-        }
-    }
-
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         viewModel.setPermissionGranted(granted)
-    }
-
-    LaunchedEffect(uiState.discoveryMode) {
-        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-            viewModel.setPermissionGranted(false)
-        }
     }
 
     Scaffold(

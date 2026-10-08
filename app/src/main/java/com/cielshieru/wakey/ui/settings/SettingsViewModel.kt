@@ -139,14 +139,23 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun confirmModeSwitch() {
+        val switchingToBaseUrl = _uiState.value.discoveryMode == DiscoveryMode.DeviceCalendar
         _uiState.update {
             it.copy(
-                discoveryMode = if (it.discoveryMode == DiscoveryMode.BaseUrl) {
-                    DiscoveryMode.DeviceCalendar
-                } else {
+                discoveryMode = if (switchingToBaseUrl) {
                     DiscoveryMode.BaseUrl
+                } else {
+                    DiscoveryMode.DeviceCalendar
                 },
-                showModeSwitchDialog = false
+                showModeSwitchDialog = false,
+                calendarPicker = if (switchingToBaseUrl) {
+                    it.calendarPicker.copy(
+                        selectedIds = emptySet(),
+                        permissionGranted = false
+                    )
+                } else {
+                    it.calendarPicker
+                }
             )
         }
     }
