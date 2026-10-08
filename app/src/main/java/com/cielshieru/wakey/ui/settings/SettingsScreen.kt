@@ -28,6 +28,23 @@ import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 
 @Composable
+private fun ValidationSupportingText(
+    value: String,
+    min: Int,
+    max: Int,
+    label: String
+) {
+    val intValue = value.toIntOrNull()
+    if (intValue != null && (intValue < min || intValue > max)) {
+        Text(
+            text = "$label must be $min-$max",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
+    }
+}
+
+@Composable
 fun CalendarPicker(
     calendars: List<CalendarEntry>,
     selectedIds: Set<String>,
@@ -195,14 +212,16 @@ fun SettingsScreen(
                 value = uiState.repeatInterval.toString(),
                 onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
                 label = { Text("Repeat interval (minutes, 1-30)") },
-                singleLine = true
+                singleLine = true,
+                supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
             )
 
             OutlinedTextField(
                 value = uiState.maxRepeats.toString(),
                 onValueChange = { viewModel.updateMaxRepeats(it.toIntOrNull() ?: 6) },
                 label = { Text("Max repeats (1-20)") },
-                singleLine = true
+                singleLine = true,
+                supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
             )
 
             Text("Bedtime Reminder", style = MaterialTheme.typography.titleLarge)
@@ -224,14 +243,16 @@ fun SettingsScreen(
                     value = uiState.sleepDuration.toString(),
                     onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
                     label = { Text("Target sleep (hours, 4-12)") },
-                    singleLine = true
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 4, 12, "Target sleep") }
                 )
 
                 OutlinedTextField(
                     value = uiState.bedtimeOffset.toString(),
                     onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
                     label = { Text("Bedtime reminder offset (minutes, 5-60)") },
-                    singleLine = true
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 60, "Bedtime offset") }
                 )
             }
 
@@ -254,7 +275,8 @@ fun SettingsScreen(
                     value = uiState.externalBuffer.toString(),
                     onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
                     label = { Text("Buffer minutes (5-120)") },
-                    singleLine = true
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
                 )
 
                 if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
