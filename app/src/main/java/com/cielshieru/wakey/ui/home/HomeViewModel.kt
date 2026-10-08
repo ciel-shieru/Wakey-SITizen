@@ -2,6 +2,8 @@ package com.cielshieru.wakey.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.ManualOverride
@@ -46,7 +48,8 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val alarmRepository: AlarmRepository
+    private val alarmRepository: AlarmRepository,
+    private val workManager: WorkManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -96,6 +99,19 @@ class HomeViewModel @Inject constructor(
                         nextAlarmText = nextAlarmText,
                         overrideText = overrideText
                     )
+                }
+        }
+
+        viewModelScope.launch {
+            workManager.getWorkInfosByTagFlow("sync_work")
+                .map { workInfos ->
+                    workInfos.any {
+                        it.state == WorkInfo.State.RUNNING ||
+                                it.state == WorkInfo.State.BLOCKED
+                    }
+                }
+                .collect { syncing ->
+                    _uiState.value = _uiState.value.copy(isSyncing = syncing)
                 }
         }
     }
