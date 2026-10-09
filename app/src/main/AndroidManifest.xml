@@ -39,7 +39,7 @@
         <!-- ADR-0007: BootReceiver for reboot recovery -->
         <receiver
             android:name=".android.BootReceiver"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>

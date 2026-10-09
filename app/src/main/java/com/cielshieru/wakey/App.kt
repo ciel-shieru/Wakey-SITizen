@@ -25,6 +25,7 @@ class App : Application(), Configuration.Provider {
         super.onCreate()
         // ADR-0008: create the notification channels up front (idempotent).
         NotificationService.initChannels(this)
+        syncUseCase.syncImmediately()
         syncUseCase.schedulePeriodicSync()
     }
 
