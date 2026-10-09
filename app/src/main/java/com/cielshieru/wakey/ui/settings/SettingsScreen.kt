@@ -6,8 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -155,217 +153,258 @@ fun SettingsScreen(
             )
         }
     ) { padding ->
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-            Text("Alarm Offsets", style = MaterialTheme.typography.titleLarge)
-
-            OutlinedTextField(
-                value = uiState.onlineOffset.toString(),
-                onValueChange = { viewModel.updateOnlineOffset(it.toIntOrNull() ?: 60) },
-                label = { Text("Online offset (minutes)") },
-                singleLine = true,
-                supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
-            )
-
-            OutlinedTextField(
-                value = uiState.campusOffset.toString(),
-                onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
-                label = { Text("Campus offset (minutes)") },
-                singleLine = true,
-                supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
-            )
-
-            Text("SIT-ICS-Go Discovery", style = MaterialTheme.typography.titleLarge)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Switch(
-                    checked = uiState.discoveryMode == DiscoveryMode.BaseUrl,
-                    onCheckedChange = { viewModel.toggleDiscoveryMode() }
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(if (uiState.discoveryMode == DiscoveryMode.BaseUrl) "Base URL mode" else "Device calendar mode")
+            item {
+                Text("Alarm Offsets", style = MaterialTheme.typography.titleLarge)
             }
 
-            OutlinedTextField(
-                value = uiState.baseUrl,
-                onValueChange = viewModel::updateBaseUrl,
-                label = { Text("SIT-ICS-Go base URL") },
-                placeholder = { Text("http://localhost:42748") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                supportingText = {
-                    if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                        Text("Only used in Base URL mode")
-                    }
-                }
-            )
-
-            Text("Repeat Pattern", style = MaterialTheme.typography.titleLarge)
-
-            OutlinedTextField(
-                value = uiState.repeatInterval.toString(),
-                onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
-                label = { Text("Repeat interval (minutes, 1-30)") },
-                singleLine = true,
-                supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
-            )
-
-            OutlinedTextField(
-                value = uiState.maxRepeats.toString(),
-                onValueChange = { viewModel.updateMaxRepeats(it.toIntOrNull() ?: 6) },
-                label = { Text("Max repeats (1-20)") },
-                singleLine = true,
-                supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
-            )
-
-            Text("Bedtime Reminder", style = MaterialTheme.typography.titleLarge)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Switch(
-                    checked = uiState.bedtimeEnabled,
-                    onCheckedChange = viewModel::toggleBedtimeEnabled
+            item {
+                OutlinedTextField(
+                    value = uiState.onlineOffset.toString(),
+                    onValueChange = { viewModel.updateOnlineOffset(it.toIntOrNull() ?: 60) },
+                    label = { Text("Online offset (minutes)") },
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
                 )
-                Spacer(Modifier.width(8.dp))
-                Text("Enable bedtime reminders")
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.campusOffset.toString(),
+                    onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
+                    label = { Text("Campus offset (minutes)") },
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
+                )
+            }
+
+            item {
+                Text("SIT-ICS-Go Discovery", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Switch(
+                        checked = uiState.discoveryMode == DiscoveryMode.BaseUrl,
+                        onCheckedChange = { viewModel.toggleDiscoveryMode() }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (uiState.discoveryMode == DiscoveryMode.BaseUrl) "Base URL mode" else "Device calendar mode")
+                }
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.baseUrl,
+                    onValueChange = viewModel::updateBaseUrl,
+                    label = { Text("SIT-ICS-Go base URL") },
+                    placeholder = { Text("http://localhost:42748") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                            Text("Only used in Base URL mode")
+                        }
+                    }
+                )
+            }
+
+            item {
+                Text("Repeat Pattern", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.repeatInterval.toString(),
+                    onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
+                    label = { Text("Repeat interval (minutes, 1-30)") },
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
+                )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.maxRepeats.toString(),
+                    onValueChange = { viewModel.updateMaxRepeats(it.toIntOrNull() ?: 6) },
+                    label = { Text("Max repeats (1-20)") },
+                    singleLine = true,
+                    supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
+                )
+            }
+
+            item {
+                Text("Bedtime Reminder", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Switch(
+                        checked = uiState.bedtimeEnabled,
+                        onCheckedChange = viewModel::toggleBedtimeEnabled
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Enable bedtime reminders")
+                }
             }
 
             if (uiState.bedtimeEnabled) {
-                OutlinedTextField(
-                    value = uiState.sleepDuration.toString(),
-                    onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
-                    label = { Text("Target sleep (hours, 4-12)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 4, 12, "Target sleep") }
-                )
+                item {
+                    OutlinedTextField(
+                        value = uiState.sleepDuration.toString(),
+                        onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
+                        label = { Text("Target sleep (hours, 4-12)") },
+                        singleLine = true,
+                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 4, 12, "Target sleep") }
+                    )
+                }
 
-                OutlinedTextField(
-                    value = uiState.bedtimeOffset.toString(),
-                    onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
-                    label = { Text("Bedtime reminder offset (minutes, 5-60)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 60, "Bedtime offset") }
-                )
+                item {
+                    OutlinedTextField(
+                        value = uiState.bedtimeOffset.toString(),
+                        onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
+                        label = { Text("Bedtime reminder offset (minutes, 5-60)") },
+                        singleLine = true,
+                        supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 60, "Bedtime offset") }
+                    )
+                }
             }
 
             if (uiState.bedtimeEnabled && !postNotificationsGranted) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "Bedtime reminders require notification permission.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
-                            Text("Open App Settings")
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Bedtime reminders require notification permission.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
+                                Text("Open App Settings")
+                            }
                         }
                     }
                 }
             }
 
-            Text("External Events", style = MaterialTheme.typography.titleLarge)
+            item {
+                Text("External Events", style = MaterialTheme.typography.titleLarge)
+            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Switch(
-                    checked = uiState.externalEnabled,
-                    onCheckedChange = viewModel::toggleExternalEvents
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Enable external event adjustment")
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Switch(
+                        checked = uiState.externalEnabled,
+                        onCheckedChange = viewModel::toggleExternalEvents
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Enable external event adjustment")
+                }
             }
 
             if (uiState.externalEnabled) {
-                OutlinedTextField(
-                    value = uiState.externalBuffer.toString(),
-                    onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
-                    label = { Text("Buffer minutes (5-120)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
-                )
+                item {
+                    OutlinedTextField(
+                        value = uiState.externalBuffer.toString(),
+                        onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
+                        label = { Text("Buffer minutes (5-120)") },
+                        singleLine = true,
+                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
+                    )
+                }
 
                 if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
                     if (uiState.calendarPicker.permissionDenied) {
-                        Text(
-                            text = "Calendar permission denied — enable in app settings",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        OutlinedButton(
-                            onClick = { viewModel.openAppSettings(context) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Open App Settings")
+                        item {
+                            Text(
+                                text = "Calendar permission denied — enable in app settings",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        item {
+                            OutlinedButton(
+                                onClick = { viewModel.openAppSettings(context) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Open App Settings")
+                            }
                         }
                     } else {
-                        Button(
-                            onClick = { permissionLauncher.launch(READ_CALENDAR) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Grant Calendar Permission")
+                        item {
+                            Button(
+                                onClick = { permissionLauncher.launch(READ_CALENDAR) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Grant Calendar Permission")
+                            }
                         }
                     }
                 } else if (uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
-                    Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)
+                    item {
+                        Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)
+                    }
                 } else if (uiState.calendarPicker.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                    item {
+                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                    }
                 } else if (showCalendarPicker) {
-                    Text("Select Calendars", style = MaterialTheme.typography.titleMedium)
-                    CalendarPicker(
-                        calendars = uiState.calendarPicker.calendars,
-                        selectedIds = uiState.calendarPicker.selectedIds,
-                        onToggleSelection = viewModel::toggleCalendarSelection,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    item {
+                        Text("Select Calendars", style = MaterialTheme.typography.titleMedium)
+                    }
+                    item {
+                        CalendarPicker(
+                            calendars = uiState.calendarPicker.calendars,
+                            selectedIds = uiState.calendarPicker.selectedIds,
+                            onToggleSelection = viewModel::toggleCalendarSelection,
+                            modifier = Modifier.fillMaxWidth().height(200.dp)
+                        )
+                    }
                 }
             }
 
-            Text("Permissions", style = MaterialTheme.typography.titleLarge)
+            item {
+                Text("Permissions", style = MaterialTheme.typography.titleLarge)
+            }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.permissionStatus, key = { it.permission }) { entry ->
-                    PermissionCard(entry) { viewModel.openAppSettings(context) }
-                }
+            items(uiState.permissionStatus, key = { it.permission }) { entry ->
+                PermissionCard(entry) { viewModel.openAppSettings(context) }
             }
         }
 
@@ -395,7 +434,6 @@ fun SettingsScreen(
                     }
                 }
             )
-        }
         }
     }
 }
