@@ -196,20 +196,20 @@ fun SettingsScreen(
                 )
             }
 
-            item {
-                OutlinedTextField(
-                    value = uiState.remoteServerUrl,
-                    onValueChange = viewModel::updateRemoteServerUrl,
-                    label = { Text("Remote Server URL") },
-                    placeholder = { Text("http://localhost:42748") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = {
-                        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                            Text("Only used in Remote Server mode")
+            if (uiState.discoveryMode == DiscoveryMode.RemoteServer) {
+                item {
+                    OutlinedTextField(
+                        value = uiState.remoteServerUrl,
+                        onValueChange = viewModel::updateRemoteServerUrl,
+                        label = { Text("Remote Server URL") },
+                        placeholder = { Text("http://localhost:42748") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = {
+                            Text("URL of your SIT-ICS-Go server running wakey-sitizen plugin")
                         }
-                    }
-                )
+                    )
+                }
             }
 
             item {
