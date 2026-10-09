@@ -3,6 +3,7 @@ package com.cielshieru.wakey
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.ExistingPeriodicWorkPolicy
 import com.cielshieru.wakey.android.NotificationService
 import com.cielshieru.wakey.usecase.SyncUseCase
 import dagger.hilt.android.HiltAndroidApp
@@ -26,7 +27,7 @@ class App : Application(), Configuration.Provider {
         // ADR-0008: create the notification channels up front (idempotent).
         NotificationService.initChannels(this)
         syncUseCase.syncImmediately()
-        syncUseCase.schedulePeriodicSync()
+        syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.REPLACE)
     }
 
     override val workManagerConfiguration: Configuration

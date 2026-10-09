@@ -3,11 +3,10 @@ package com.cielshieru.wakey.android
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.cielshieru.wakey.usecase.SyncUseCase
 import com.cielshieru.wakey.worker.SyncWorker
 
 /**
@@ -41,17 +40,7 @@ class BootReceiver : BroadcastReceiver() {
         WorkManager.getInstance(context)
             .enqueueUniqueWork(UNIQUE_BOOT_SYNC, ExistingWorkPolicy.REPLACE, workRequest)
 
-        val periodicSync = PeriodicWorkRequestBuilder<SyncWorker>(
-            12, java.util.concurrent.TimeUnit.HOURS,
-            30, java.util.concurrent.TimeUnit.MINUTES
-        ).build()
-
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                "sync_work",
-                ExistingPeriodicWorkPolicy.KEEP,
-                periodicSync
-            )
+        SyncUseCase.schedulePeriodicSync(WorkManager.getInstance(context))
     }
 
     companion object {
