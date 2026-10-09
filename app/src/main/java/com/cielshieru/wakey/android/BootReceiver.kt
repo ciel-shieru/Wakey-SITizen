@@ -3,6 +3,7 @@ package com.cielshieru.wakey.android
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -41,6 +42,8 @@ class BootReceiver : BroadcastReceiver() {
             .enqueueUniqueWork(UNIQUE_BOOT_SYNC, ExistingWorkPolicy.REPLACE, workRequest)
 
         SyncUseCase.schedulePeriodicSync(WorkManager.getInstance(context))
+
+        Toast.makeText(context, "Sync triggered: Boot (immediate)", Toast.LENGTH_SHORT).show()
     }
 
     companion object {

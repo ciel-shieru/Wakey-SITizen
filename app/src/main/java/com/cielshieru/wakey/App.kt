@@ -1,6 +1,7 @@
 package com.cielshieru.wakey
 
 import android.app.Application
+import android.widget.Toast
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -24,10 +25,10 @@ class App : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // ADR-0008: create the notification channels up front (idempotent).
         NotificationService.initChannels(this)
         syncUseCase.syncImmediately()
         syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.REPLACE)
+        Toast.makeText(this, "Sync triggered: App launch (immediate)", Toast.LENGTH_SHORT).show()
     }
 
     override val workManagerConfiguration: Configuration

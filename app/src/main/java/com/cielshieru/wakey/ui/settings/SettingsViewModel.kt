@@ -53,6 +53,14 @@ data class CalendarPickerUiState(
     val permissionDenied: Boolean = false
 )
 
+sealed interface SyncEvent {
+    data class SyncTriggered(
+        val source: String,
+        val mode: String,
+        val nextSyncDue: String? = null
+    ) : SyncEvent
+}
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
@@ -66,6 +74,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _configSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val configSaved: SharedFlow<Unit> = _configSaved
+
+    private val _syncEvent = MutableSharedFlow<SyncEvent>(extraBufferCapacity = 1)
+    val syncEvent: SharedFlow<SyncEvent> = _syncEvent
 
     init {
         viewModelScope.launch {
@@ -251,6 +262,12 @@ class SettingsViewModel @Inject constructor(
             syncUseCase.cancelSync()
             syncUseCase.schedulePeriodicSync()
             syncUseCase.syncImmediately()
+            _syncEvent.emit(
+                SyncEvent.SyncTriggered(
+                    source = "Settings save",
+                    mode = "immediate"
+                )
+            )
             _configSaved.emit(Unit)
         }
     }
