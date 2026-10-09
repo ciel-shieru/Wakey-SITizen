@@ -17,6 +17,7 @@ import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.PermissionChecker
+import com.cielshieru.wakey.usecase.SyncUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,7 +57,8 @@ data class CalendarPickerUiState(
 class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val permissionChecker: PermissionChecker,
-    private val datastore: DataStore<Preferences>
+    private val datastore: DataStore<Preferences>,
+    private val syncUseCase: SyncUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -246,6 +248,8 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode
             )
             alarmRepository.saveConfig(config)
+            syncUseCase.cancelSync()
+            syncUseCase.schedulePeriodicSync()
             _configSaved.emit(Unit)
         }
     }
