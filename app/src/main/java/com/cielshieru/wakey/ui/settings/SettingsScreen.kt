@@ -104,16 +104,16 @@ fun SettingsScreen(
         ?.status == PermissionStatus.Granted
 
     LaunchedEffect(uiState.externalEnabled, uiState.discoveryMode) {
-        if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+        if (uiState.discoveryMode == DiscoveryMode.RemoteServer) {
             viewModel.setPermissionGranted("READ_CALENDAR", false)
         }
-        if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.BaseUrl) {
+        if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.RemoteServer) {
             showCalendarPicker = true
         }
     }
 
     LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled, uiState.discoveryMode) {
-        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.externalEnabled) {
+        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.RemoteServer && uiState.externalEnabled) {
             val calendars = getReadableCalendars(context)
             viewModel.loadCalendars(calendars)
         }
@@ -190,30 +190,23 @@ fun SettingsScreen(
             }
 
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Switch(
-                        checked = uiState.discoveryMode == DiscoveryMode.BaseUrl,
-                        onCheckedChange = { viewModel.toggleDiscoveryMode() }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (uiState.discoveryMode == DiscoveryMode.BaseUrl) "Base URL mode" else "Device calendar mode")
-                }
+                DiscoveryModeSegmentedButton(
+                    selectedMode = uiState.discoveryMode,
+                    onModeSelected = viewModel::selectDiscoveryMode
+                )
             }
 
             item {
                 OutlinedTextField(
-                    value = uiState.baseUrl,
-                    onValueChange = viewModel::updateBaseUrl,
-                    label = { Text("SIT-ICS-Go base URL") },
+                    value = uiState.remoteServerUrl,
+                    onValueChange = viewModel::updateRemoteServerUrl,
+                    label = { Text("Remote Server URL") },
                     placeholder = { Text("http://localhost:42748") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = {
                         if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                            Text("Only used in Base URL mode")
+                            Text("Only used in Remote Server mode")
                         }
                     }
                 )
@@ -241,10 +234,6 @@ fun SettingsScreen(
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
                 )
-            }
-
-            item {
-                Text("Bedtime Reminder", style = MaterialTheme.typography.titleLarge)
             }
 
             item {
@@ -349,7 +338,7 @@ fun SettingsScreen(
                     )
                 }
 
-                if (uiState.discoveryMode == DiscoveryMode.BaseUrl && !uiState.calendarPicker.permissionGranted) {
+                if (uiState.discoveryMode == DiscoveryMode.RemoteServer && !uiState.calendarPicker.permissionGranted) {
                     if (uiState.calendarPicker.permissionDenied) {
                         item {
                             Text(
@@ -376,7 +365,7 @@ fun SettingsScreen(
                             }
                         }
                     }
-                } else if (uiState.discoveryMode == DiscoveryMode.BaseUrl && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
+                } else if (uiState.discoveryMode == DiscoveryMode.RemoteServer && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
                     item {
                         Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)
                     }
@@ -408,32 +397,41 @@ fun SettingsScreen(
             }
         }
 
-        if (uiState.showModeSwitchDialog) {
-            AlertDialog(
-                onDismissRequest = { viewModel.cancelModeSwitch() },
-                title = { Text("Switch Discovery Mode") },
-                text = {
-                    Column {
-                        Text(
-                            if (uiState.discoveryMode == DiscoveryMode.BaseUrl) {
-                                "Switching to Device Calendar mode will stop using your SIT-ICS-Go base URL. Timetable data will be read from your device calendar instead."
-                            } else {
-                                "Switching to Base URL mode will stop using your device calendar. Timetable data will be fetched from your SIT-ICS-Go server. Your calendar selection will be reset."
-                            }
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.confirmModeSwitch() }) {
-                        Text("Switch")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.cancelModeSwitch() }) {
-                        Text("Cancel")
-                    }
+    }
+}
+
+@Composable
+private fun DiscoveryModeSegmentedButton(
+    selectedMode: DiscoveryMode,
+    onModeSelected: (DiscoveryMode) -> Unit
+) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        SegmentedButton(
+            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+            selected = selectedMode == DiscoveryMode.DeviceCalendar,
+            onClick = { onModeSelected(DiscoveryMode.DeviceCalendar) },
+            icon = {
+                if (selectedMode == DiscoveryMode.DeviceCalendar) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null)
                 }
-            )
+            }
+        ) {
+            Text("Device Calendar")
+        }
+
+        SegmentedButton(
+            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+            selected = selectedMode == DiscoveryMode.RemoteServer,
+            onClick = { onModeSelected(DiscoveryMode.RemoteServer) },
+            icon = {
+                if (selectedMode == DiscoveryMode.RemoteServer) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null)
+                }
+            }
+        ) {
+            Text("Remote Server")
         }
     }
 }

@@ -21,7 +21,8 @@ object AlarmConfigStore {
     private val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
     private val EXTERNAL_EVENTS_ENABLED = booleanPreferencesKey("external_events_enabled")
     private val BEDTIME_ENABLED = booleanPreferencesKey("bedtime_enabled")
-    private val BASE_URL = stringPreferencesKey("base_url")
+    private val REMOTE_SERVER_LEGACY = stringPreferencesKey("base_url")
+    private val REMOTE_SERVER_URL = stringPreferencesKey("remote_server_url")
     private val DISCOVERY_MODE = stringPreferencesKey("discovery_mode")
     private val SELECTED_CALENDAR_IDS = stringPreferencesKey("selected_calendar_ids")
 
@@ -38,7 +39,7 @@ object AlarmConfigStore {
             selectedCalendarIds = prefs[SELECTED_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
                 ?: emptyList(),
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
-            baseUrl = prefs[BASE_URL] ?: AlarmConfig.DEFAULT_BASE_URL,
+            remoteServerUrl = prefs[REMOTE_SERVER_LEGACY] ?: prefs[REMOTE_SERVER_URL] ?: AlarmConfig.DEFAULT_REMOTE_SERVER_URL,
             discoveryMode = parseDiscoveryMode(prefs[DISCOVERY_MODE])
         )
     }
@@ -46,7 +47,7 @@ object AlarmConfigStore {
     private fun parseDiscoveryMode(value: String?): DiscoveryMode {
         return when (value) {
             "device_calendar" -> DiscoveryMode.DeviceCalendar
-            else -> DiscoveryMode.BaseUrl
+            else -> DiscoveryMode.RemoteServer
         }
     }
 
@@ -62,10 +63,10 @@ object AlarmConfigStore {
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[SELECTED_CALENDAR_IDS] = config.selectedCalendarIds.joinToString(",")
             prefs[BEDTIME_ENABLED] = config.bedtimeEnabled
-            prefs[BASE_URL] = config.baseUrl
+            prefs[REMOTE_SERVER_URL] = config.remoteServerUrl
             prefs[DISCOVERY_MODE] = when (config.discoveryMode) {
-                DiscoveryMode.BaseUrl -> "base_url"
                 DiscoveryMode.DeviceCalendar -> "device_calendar"
+                DiscoveryMode.RemoteServer -> "remote_server"
             }
         }
     }

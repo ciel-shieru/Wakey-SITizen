@@ -38,11 +38,10 @@ data class SettingsUiState(
     val externalBuffer: Int = 30,
     val externalEnabled: Boolean = false,
     val bedtimeEnabled: Boolean = false,
-    val baseUrl: String = "",
-    val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl,
+    val remoteServerUrl: String = "",
+    val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
     val calendarPicker: CalendarPickerUiState = CalendarPickerUiState(),
-    val permissionStatus: List<PermissionEntry> = emptyList(),
-    val showModeSwitchDialog: Boolean = false
+    val permissionStatus: List<PermissionEntry> = emptyList()
 )
 
 data class CalendarPickerUiState(
@@ -91,7 +90,7 @@ class SettingsViewModel @Inject constructor(
                     externalBuffer = config.externalEventBufferMinutes,
                     externalEnabled = config.externalEventEnabled,
                     bedtimeEnabled = config.bedtimeEnabled,
-                    baseUrl = config.baseUrl,
+                    remoteServerUrl = config.remoteServerUrl,
                     discoveryMode = config.discoveryMode,
                     calendarPicker = _uiState.value.calendarPicker.copy(
                         selectedIds = config.selectedCalendarIds.toSet()
@@ -147,21 +146,11 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(bedtimeEnabled = enabled) }
     }
 
-    fun toggleDiscoveryMode() {
-        _uiState.update { it.copy(showModeSwitchDialog = true) }
-    }
-
-    fun confirmModeSwitch() {
-        val switchingToBaseUrl = _uiState.value.discoveryMode == DiscoveryMode.DeviceCalendar
+    fun selectDiscoveryMode(mode: DiscoveryMode) {
         _uiState.update {
             it.copy(
-                discoveryMode = if (switchingToBaseUrl) {
-                    DiscoveryMode.BaseUrl
-                } else {
-                    DiscoveryMode.DeviceCalendar
-                },
-                showModeSwitchDialog = false,
-                calendarPicker = if (switchingToBaseUrl) {
+                discoveryMode = mode,
+                calendarPicker = if (mode == DiscoveryMode.RemoteServer) {
                     it.calendarPicker.copy(
                         selectedIds = emptySet(),
                         permissionGranted = false
@@ -173,12 +162,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun cancelModeSwitch() {
-        _uiState.update { it.copy(showModeSwitchDialog = false) }
-    }
-
-    fun updateBaseUrl(value: String) {
-        _uiState.update { it.copy(baseUrl = value) }
+    fun updateRemoteServerUrl(value: String) {
+        _uiState.update { it.copy(remoteServerUrl = value) }
     }
 
     fun setPermissionGranted(permissionName: String, granted: Boolean) {
@@ -255,7 +240,7 @@ class SettingsViewModel @Inject constructor(
                 externalEventEnabled = state.externalEnabled,
                 selectedCalendarIds = state.calendarPicker.selectedIds.toList(),
                 bedtimeEnabled = state.bedtimeEnabled,
-                baseUrl = state.baseUrl,
+                remoteServerUrl = state.remoteServerUrl,
                 discoveryMode = state.discoveryMode
             )
             alarmRepository.saveConfig(config)

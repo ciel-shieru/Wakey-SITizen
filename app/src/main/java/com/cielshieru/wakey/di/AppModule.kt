@@ -12,7 +12,7 @@ import com.cielshieru.wakey.data.calendar.SystemCalendarSource
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
-import com.cielshieru.wakey.domain.port.BaseUrlProvider
+import com.cielshieru.wakey.domain.port.RemoteServerProvider
 import com.cielshieru.wakey.domain.port.*
 import dagger.Module
 import dagger.Provides
@@ -52,20 +52,20 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideBaseUrlProvider(
+    fun provideRemoteServerProvider(
         datastore: DataStore<Preferences>
-    ): BaseUrlProvider = object : BaseUrlProvider {
-        override val baseUrl: Flow<String> = datastore.data.map { prefs ->
-            prefs[stringPreferencesKey("base_url")] ?: AlarmConfig.DEFAULT_BASE_URL
+    ): RemoteServerProvider = object : RemoteServerProvider {
+        override val remoteServerUrl: Flow<String> = datastore.data.map { prefs ->
+            prefs[stringPreferencesKey("base_url")] ?: prefs[stringPreferencesKey("remote_server_url")] ?: AlarmConfig.DEFAULT_REMOTE_SERVER_URL
         }
     }
 
     @Provides
     @Singleton
     fun provideTimetableClient(
-        baseUrlProvider: BaseUrlProvider
+        remoteServerProvider: RemoteServerProvider
     ): TimetableClient = TimetableClient(
-        baseUrlProvider = baseUrlProvider
+        remoteServerProvider = remoteServerProvider
     )
 
     @Provides

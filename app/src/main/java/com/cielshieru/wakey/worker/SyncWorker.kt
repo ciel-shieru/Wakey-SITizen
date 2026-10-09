@@ -41,8 +41,8 @@ import kotlinx.coroutines.flow.first
  * a one-time request on boot (ADR-0007, boot recovery).
  *
  * Pipeline:
- * 1. **Fetch timetable** — base-URL JSON when discovery mode is
- *    [DiscoveryMode.BaseUrl] (stale-while-revalidate on failure); or
+ * 1. **Fetch timetable** — remote server JSON when discovery mode is
+ *    [DiscoveryMode.RemoteServer] (stale-while-revalidate on failure); or
  *    device calendar events when discovery mode is
  *    [DiscoveryMode.DeviceCalendar].
  * 2. **Parse and filter** — drop x-site/BrightSpace events (`brightspace-`
@@ -164,22 +164,22 @@ class SyncWorker @AssistedInject constructor(
     }
 
     /**
-     * Step 1. When discovery mode is [DiscoveryMode.BaseUrl] the timetable is
-     * fetched from the configured base URL; on failure the last-parsed events
-     * from DataStore are returned (stale-while-revalidate, ADR-0007) — an
-     * empty list if there is none.
-     *
-     * When discovery mode is [DiscoveryMode.DeviceCalendar] events are read
-     * from the device calendar for the upcoming days needed by
-     * [AlarmComputer].
-     */
+      * Step 1. When discovery mode is [DiscoveryMode.RemoteServer] the timetable is
+      * fetched from the configured remote server URL; on failure the last-parsed events
+      * from DataStore are returned (stale-while-revalidate, ADR-0007) — an
+      * empty list if there is none.
+      *
+      * When discovery mode is [DiscoveryMode.DeviceCalendar] events are read
+      * from the device calendar for the upcoming days needed by
+      * [AlarmComputer].
+      */
     private suspend fun fetchTimetable(
         config: AlarmConfig,
         now: java.time.Instant,
         zone: java.time.ZoneId
     ): List<TimetableEvent> =
         when (config.discoveryMode) {
-            DiscoveryMode.BaseUrl -> {
+            DiscoveryMode.RemoteServer -> {
                 when (val result = timetableClient.fetch()) {
                     is TimetableClient.Result.Success -> {
                         dataStore.saveTimetable(result.response)

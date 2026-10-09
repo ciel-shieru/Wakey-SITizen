@@ -14,17 +14,17 @@ import com.cielshieru.wakey.data.store.JsonConfig
 
 /**
  * Fetches the wakey-sitizen timetable JSON from a SIT-ICS-Go server
- * (ADR-0002, base-URL mode):
+ * (ADR-0002, remote server mode):
  *
  * ```
- * GET {baseUrl}/wakey-sitizen/timetable.json
+ * GET {remoteServerUrl}/wakey-sitizen/timetable.json
  * ```
  *
  * Self-made on purpose (ADR-0009): `java.net.http.HttpClient` is built into
  * Android API 36+ and simple GET requests are all this app needs — OkHttp or
  * Retrofit would add dependency surface for no benefit.
  *
- * The base URL is user-configured, so it is resolved through [baseUrlProvider]
+ * The remote server URL is user-configured, so it is resolved through [remoteServerProvider]
  * at fetch time (the provider reads it from DataStore).
  *
  * Failure contract: [fetch] never throws. Network errors, non-2xx responses,
@@ -33,7 +33,7 @@ import com.cielshieru.wakey.data.store.JsonConfig
  * (ADR-0007).
  */
 class TimetableClient(
-    private val baseUrlProvider: com.cielshieru.wakey.domain.port.BaseUrlProvider
+    private val remoteServerProvider: com.cielshieru.wakey.domain.port.RemoteServerProvider
 ) {
 
     sealed interface Result {
@@ -42,13 +42,13 @@ class TimetableClient(
     }
 
     suspend fun fetch(): Result = try {
-        val baseUrl = baseUrlProvider.baseUrl.first().trim().trimEnd('/')
-        if (baseUrl.isEmpty()) {
+        val remoteServerUrl = remoteServerProvider.remoteServerUrl.first().trim().trimEnd('/')
+        if (remoteServerUrl.isEmpty()) {
             Result.Error(
-                IllegalStateException("Timetable base URL is not configured")
+                IllegalStateException("Timetable remote server URL is not configured")
             )
         } else {
-            val body = withContext(Dispatchers.IO) { httpGet("$baseUrl$PATH") }
+            val body = withContext(Dispatchers.IO) { httpGet("$remoteServerUrl$PATH") }
             val response = JsonConfig.instance.decodeFromString<WakeyResponse>(body)
             if (response.schema_version < MIN_SUPPORTED_SCHEMA_VERSION) {
                 Result.Error(

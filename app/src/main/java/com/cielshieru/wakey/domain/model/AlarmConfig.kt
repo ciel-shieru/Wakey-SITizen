@@ -1,8 +1,8 @@
 package com.cielshieru.wakey.domain.model
 
 sealed interface DiscoveryMode {
-    object BaseUrl : DiscoveryMode
     object DeviceCalendar : DiscoveryMode
+    object RemoteServer : DiscoveryMode
 }
 
 data class AlarmConfig(
@@ -16,8 +16,8 @@ data class AlarmConfig(
     val externalEventEnabled: Boolean = false,
     val selectedCalendarIds: List<String> = emptyList(),
     val bedtimeEnabled: Boolean = false,
-    val baseUrl: String = DEFAULT_BASE_URL,
-    val discoveryMode: DiscoveryMode = DiscoveryMode.BaseUrl
+    val remoteServerUrl: String = DEFAULT_REMOTE_SERVER_URL,
+    val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar
 ) {
     companion object {
         const val DEFAULT_ONLINE_OFFSET = 60
@@ -27,7 +27,7 @@ data class AlarmConfig(
         const val DEFAULT_SLEEP_DURATION = 8
         const val DEFAULT_BEDTIME_OFFSET = 30
         const val DEFAULT_BUFFER_MINUTES = 30
-        const val DEFAULT_BASE_URL = "http://localhost:42748"
+        const val DEFAULT_REMOTE_SERVER_URL = "http://localhost:42748"
 
         fun validate(config: AlarmConfig): AlarmConfig = config.copy(
             onlineOffsetMinutes = config.onlineOffsetMinutes.coerceIn(1, 720),
