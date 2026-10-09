@@ -22,6 +22,6 @@ class SyncUseCase @Inject constructor(
     }
 
     fun cancelSync() {
-        workManager.cancelAllWorkByTag("sync_work")
+        workManager.cancelUniqueWork("sync_work")
     }
 }
