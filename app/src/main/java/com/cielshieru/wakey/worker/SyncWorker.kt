@@ -96,7 +96,7 @@ class SyncWorker @AssistedInject constructor(
             val adjustedSchedules = if (config.externalEventEnabled) {
                 schedules.map { schedule ->
                     val externalEvents =
-                        calendarEventSource.getEventsForDate(schedule.day, emptyList())
+                        calendarEventSource.getEventsForDate(schedule.day, config.selectedCalendarIds)
                     AdjustForExternalEvents.adjust(
                         schedule,
                         externalEvents,
@@ -198,7 +198,7 @@ class SyncWorker @AssistedInject constructor(
                 val today = now.atZone(zone).toLocalDate()
                 val daysToFetch = 7
                 (0 until daysToFetch).flatMap { offset ->
-                    calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), emptyList())
+                    calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), config.selectedCalendarIds)
                 }
                     .filterNot { external ->
                         external.title.startsWith("brightspace-", ignoreCase = true)

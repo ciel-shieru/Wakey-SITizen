@@ -40,16 +40,18 @@ data class SettingsUiState(
     val bedtimeEnabled: Boolean = false,
     val remoteServerUrl: String = "",
     val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
-    val calendarPicker: CalendarPickerUiState = CalendarPickerUiState(),
+    val onlineCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
+    val campusCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
     val permissionStatus: List<PermissionEntry> = emptyList()
 )
 
-data class CalendarPickerUiState(
+data class CalendarDropdownUiState(
     val calendars: List<CalendarEntry> = emptyList(),
-    val selectedIds: Set<String> = emptySet(),
+    val selectedId: String? = null,
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
-    val permissionDenied: Boolean = false
+    val permissionDenied: Boolean = false,
+    val showDropdown: Boolean = false
 )
 
 sealed interface SyncEvent {
@@ -80,6 +82,10 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             alarmRepository.config.collect { config ->
+                val calendarIds = config.selectedCalendarIds
+                val onlineId = calendarIds.getOrNull(0)
+                val campusId = if (calendarIds.size > 1) calendarIds[1] else null
+
                 _uiState.value = SettingsUiState(
                     onlineOffset = config.onlineOffsetMinutes,
                     campusOffset = config.campusOffsetMinutes,
@@ -92,9 +98,8 @@ class SettingsViewModel @Inject constructor(
                     bedtimeEnabled = config.bedtimeEnabled,
                     remoteServerUrl = config.remoteServerUrl,
                     discoveryMode = config.discoveryMode,
-                    calendarPicker = _uiState.value.calendarPicker.copy(
-                        selectedIds = config.selectedCalendarIds.toSet()
-                    )
+                    onlineCalendarPicker = _uiState.value.onlineCalendarPicker.copy(selectedId = onlineId),
+                    campusCalendarPicker = _uiState.value.campusCalendarPicker.copy(selectedId = campusId)
                 )
             }
         }
@@ -133,7 +138,11 @@ class SettingsViewModel @Inject constructor(
         if (!enabled) {
             _uiState.update {
                 it.copy(
-                    calendarPicker = it.calendarPicker.copy(
+                    onlineCalendarPicker = it.onlineCalendarPicker.copy(
+                        isLoading = false,
+                        permissionGranted = false
+                    ),
+                    campusCalendarPicker = it.campusCalendarPicker.copy(
                         isLoading = false,
                         permissionGranted = false
                     )
@@ -150,13 +159,21 @@ class SettingsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 discoveryMode = mode,
-                calendarPicker = if (mode == DiscoveryMode.RemoteServer) {
-                    it.calendarPicker.copy(
-                        selectedIds = emptySet(),
+                onlineCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
+                    it.onlineCalendarPicker.copy(
+                        selectedId = null,
                         permissionGranted = false
                     )
                 } else {
-                    it.calendarPicker
+                    it.onlineCalendarPicker
+                },
+                campusCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
+                    it.campusCalendarPicker.copy(
+                        selectedId = null,
+                        permissionGranted = false
+                    )
+                } else {
+                    it.campusCalendarPicker
                 }
             )
         }
@@ -177,13 +194,21 @@ class SettingsViewModel @Inject constructor(
             }
         }
         _uiState.update {
-            val updatedCalendarPicker = if (permissionName == "READ_CALENDAR") {
-                it.calendarPicker.copy(
+            val updatedOnlinePicker = if (permissionName == "READ_CALENDAR") {
+                it.onlineCalendarPicker.copy(
                     permissionGranted = granted,
                     permissionDenied = !granted
                 )
             } else {
-                it.calendarPicker
+                it.onlineCalendarPicker
+            }
+            val updatedCampusPicker = if (permissionName == "READ_CALENDAR") {
+                it.campusCalendarPicker.copy(
+                    permissionGranted = granted,
+                    permissionDenied = !granted
+                )
+            } else {
+                it.campusCalendarPicker
             }
             val updatedPermissionStatus = it.permissionStatus.map { entry ->
                 if (entry.permission == permissionName) {
@@ -193,16 +218,17 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             it.copy(
-                calendarPicker = updatedCalendarPicker,
+                onlineCalendarPicker = updatedOnlinePicker,
+                campusCalendarPicker = updatedCampusPicker,
                 permissionStatus = updatedPermissionStatus
             )
         }
     }
 
-    fun loadCalendars(calendars: List<CalendarEntry>) {
+    fun loadOnlineCalendars(calendars: List<CalendarEntry>) {
         _uiState.update {
             it.copy(
-                calendarPicker = it.calendarPicker.copy(
+                onlineCalendarPicker = it.onlineCalendarPicker.copy(
                     calendars = calendars,
                     isLoading = false
                 )
@@ -210,25 +236,87 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun toggleCalendarSelection(id: String) {
-        _uiState.update { state ->
-            val current = state.calendarPicker.selectedIds.toMutableSet()
-            if (current.contains(id)) {
-                if (current.size > 1) {
-                    current.remove(id)
-                }
-            } else {
-                current.add(id)
-            }
-            state.copy(
-                calendarPicker = state.calendarPicker.copy(selectedIds = current)
+    fun loadCampusCalendars(calendars: List<CalendarEntry>) {
+        _uiState.update {
+            it.copy(
+                campusCalendarPicker = it.campusCalendarPicker.copy(
+                    calendars = calendars,
+                    isLoading = false
+                )
             )
+        }
+    }
+
+    fun selectOnlineCalendar(id: String?) {
+        _uiState.update {
+            it.copy(
+                onlineCalendarPicker = it.onlineCalendarPicker.copy(selectedId = id)
+            )
+        }
+    }
+
+    fun selectCampusCalendar(id: String?) {
+        _uiState.update {
+            it.copy(
+                campusCalendarPicker = it.campusCalendarPicker.copy(selectedId = id)
+            )
+        }
+    }
+
+    fun toggleOnlineDropdown() {
+        _uiState.update { state ->
+            val picker = state.onlineCalendarPicker
+            if (picker.permissionGranted && !picker.isLoading) {
+                state.copy(
+                    onlineCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
+                )
+            } else {
+                viewModelScope.launch {
+                    _uiState.update {
+                        it.copy(
+                            onlineCalendarPicker = it.onlineCalendarPicker.copy(
+                                isLoading = true,
+                                showDropdown = false
+                            )
+                        )
+                    }
+                }
+                state
+            }
+        }
+    }
+
+    fun toggleCampusDropdown() {
+        _uiState.update { state ->
+            val picker = state.campusCalendarPicker
+            if (picker.permissionGranted && !picker.isLoading) {
+                state.copy(
+                    campusCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
+                )
+            } else {
+                viewModelScope.launch {
+                    _uiState.update {
+                        it.copy(
+                            campusCalendarPicker = it.campusCalendarPicker.copy(
+                                isLoading = true,
+                                showDropdown = false
+                            )
+                        )
+                    }
+                }
+                state
+            }
         }
     }
 
     fun saveConfig() {
         viewModelScope.launch {
             val state = _uiState.value
+            val selectedCalendarIds = buildList {
+                state.onlineCalendarPicker.selectedId?.let { add(it) }
+                state.campusCalendarPicker.selectedId?.let { add(it) }
+            }.distinct()
+
             val config = AlarmConfig(
                 onlineOffsetMinutes = state.onlineOffset,
                 campusOffsetMinutes = state.campusOffset,
@@ -238,7 +326,7 @@ class SettingsViewModel @Inject constructor(
                 bedtimeReminderOffsetMinutes = state.bedtimeOffset,
                 externalEventBufferMinutes = state.externalBuffer,
                 externalEventEnabled = state.externalEnabled,
-                selectedCalendarIds = state.calendarPicker.selectedIds.toList(),
+                selectedCalendarIds = selectedCalendarIds,
                 bedtimeEnabled = state.bedtimeEnabled,
                 remoteServerUrl = state.remoteServerUrl,
                 discoveryMode = state.discoveryMode

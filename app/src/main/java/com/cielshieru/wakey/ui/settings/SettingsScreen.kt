@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
@@ -42,38 +41,85 @@ private fun ValidationSupportingText(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarPicker(
-    calendars: List<CalendarEntry>,
-    selectedIds: Set<String>,
-    onToggleSelection: (String) -> Unit,
+private fun ExposedDropdownCalendarPicker(
+    state: CalendarDropdownUiState,
+    label: String,
+    onDropdownToggle: () -> Unit,
+    onSelectCalendar: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+    var expanded by remember { mutableStateOf(state.showDropdown) }
+
+    LaunchedEffect(state.showDropdown) {
+        if (state.showDropdown && !expanded) {
+            expanded = true
+        }
+    }
+
+    LaunchedEffect(expanded) {
+        if (!expanded) {
+            onDropdownToggle()
+        }
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { newExpanded ->
+            if (newExpanded && !expanded) {
+                onDropdownToggle()
+            } else if (!newExpanded && expanded) {
+                expanded = false
+            }
+        },
+        modifier = modifier
     ) {
-        items(calendars, key = { it.id }) { calendar ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = calendar.id in selectedIds,
-                    onCheckedChange = { onToggleSelection(calendar.id) }
+        OutlinedTextField(
+            value = state.calendars.find { it.id == state.selectedId }?.displayName ?: "Select a calendar",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            enabled = state.permissionGranted,
+            supportingText = {
+                if (state.permissionDenied) {
+                    Text("Permission denied — grant in app settings")
+                } else if (!state.permissionGranted) {
+                    Text("Permission required")
+                } else if (state.isLoading) {
+                    Text("Loading calendars...")
+                }
+            }
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded && state.permissionGranted && !state.isLoading,
+            onDismissRequest = { expanded = false }
+        ) {
+            if (state.calendars.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No calendars available") },
+                    onClick = { expanded = false }
                 )
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = calendar.displayName,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = calendar.accountName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                state.calendars.forEach { calendar ->
+                    DropdownMenuItem(
+                        text = { Text(calendar.displayName) },
+                        onClick = {
+                            onSelectCalendar(calendar.id)
+                            expanded = false
+                        },
+                        leadingIcon = {
+                            if (calendar.id == state.selectedId) {
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     )
                 }
             }
@@ -91,7 +137,6 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showCalendarPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.configSaved.collect {
@@ -103,19 +148,27 @@ fun SettingsScreen(
         .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
         ?.status == PermissionStatus.Granted
 
-    LaunchedEffect(uiState.externalEnabled, uiState.discoveryMode) {
-        if (uiState.discoveryMode == DiscoveryMode.RemoteServer) {
-            viewModel.setPermissionGranted("READ_CALENDAR", false)
-        }
-        if (uiState.externalEnabled && uiState.discoveryMode == DiscoveryMode.RemoteServer) {
-            showCalendarPicker = true
+    LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
+        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
+            uiState.externalEnabled &&
+            uiState.onlineCalendarPicker.permissionGranted &&
+            uiState.onlineCalendarPicker.calendars.isEmpty() &&
+            !uiState.onlineCalendarPicker.isLoading
+        ) {
+            val calendars = getReadableCalendars(context)
+            viewModel.loadOnlineCalendars(calendars)
         }
     }
 
-    LaunchedEffect(uiState.calendarPicker.permissionGranted, uiState.externalEnabled, uiState.discoveryMode) {
-        if (uiState.calendarPicker.permissionGranted && uiState.discoveryMode == DiscoveryMode.RemoteServer && uiState.externalEnabled) {
+    LaunchedEffect(uiState.campusCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
+        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
+            uiState.externalEnabled &&
+            uiState.campusCalendarPicker.permissionGranted &&
+            uiState.campusCalendarPicker.calendars.isEmpty() &&
+            !uiState.campusCalendarPicker.isLoading
+        ) {
             val calendars = getReadableCalendars(context)
-            viewModel.loadCalendars(calendars)
+            viewModel.loadCampusCalendars(calendars)
         }
     }
 
@@ -126,7 +179,11 @@ fun SettingsScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
-        viewModel.setPermissionGranted("READ_CALENDAR", granted)
+        if (granted) {
+            viewModel.setPermissionGranted("READ_CALENDAR", true)
+        } else {
+            viewModel.setPermissionGranted("READ_CALENDAR", false)
+        }
     }
 
     Scaffold(
@@ -141,7 +198,10 @@ fun SettingsScreen(
                 },
                 actions = {
                     TextButton(onClick = {
-                        if (uiState.externalEnabled && uiState.calendarPicker.selectedIds.isEmpty()) {
+                        if (uiState.externalEnabled &&
+                            uiState.onlineCalendarPicker.selectedId.isNullOrBlank() &&
+                            uiState.campusCalendarPicker.selectedId.isNullOrBlank()
+                        ) {
                             onShowSnackbar("Select at least one calendar for external events")
                             return@TextButton
                         }
@@ -338,25 +398,35 @@ fun SettingsScreen(
                     )
                 }
 
-                if (uiState.discoveryMode == DiscoveryMode.RemoteServer && !uiState.calendarPicker.permissionGranted) {
-                    if (uiState.calendarPicker.permissionDenied) {
-                        item {
-                            Text(
-                                text = "Calendar permission denied — enable in app settings",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                        item {
-                            OutlinedButton(
-                                onClick = { viewModel.openAppSettings(context) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Open App Settings")
-                            }
-                        }
-                    } else {
-                        item {
+                if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                    item {
+                        Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    item {
+                        ExposedDropdownCalendarPicker(
+                            state = uiState.onlineCalendarPicker,
+                            label = "Online Timetable Calendar",
+                            onDropdownToggle = viewModel::toggleOnlineDropdown,
+                            onSelectCalendar = viewModel::selectOnlineCalendar
+                        )
+                    }
+
+                    item {
+                        Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    item {
+                        ExposedDropdownCalendarPicker(
+                            state = uiState.campusCalendarPicker,
+                            label = "In-Campus Timetable Calendar",
+                            onDropdownToggle = viewModel::toggleCampusDropdown,
+                            onSelectCalendar = viewModel::selectCampusCalendar
+                        )
+                    }
+
+                    item {
+                        if (!uiState.onlineCalendarPicker.permissionGranted) {
                             Button(
                                 onClick = { permissionLauncher.launch(READ_CALENDAR) },
                                 modifier = Modifier.fillMaxWidth()
@@ -365,25 +435,28 @@ fun SettingsScreen(
                             }
                         }
                     }
-                } else if (uiState.discoveryMode == DiscoveryMode.RemoteServer && uiState.calendarPicker.permissionGranted && !uiState.calendarPicker.isLoading && uiState.calendarPicker.calendars.isEmpty()) {
+
                     item {
-                        Text("No readable calendars found", style = MaterialTheme.typography.bodyMedium)
+                        if (uiState.onlineCalendarPicker.permissionGranted &&
+                            uiState.onlineCalendarPicker.calendars.isEmpty() &&
+                            !uiState.onlineCalendarPicker.isLoading
+                        ) {
+                            Text(
+                                "No readable calendars found on this device",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     }
-                } else if (uiState.calendarPicker.isLoading) {
+
                     item {
-                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                    }
-                } else if (showCalendarPicker) {
-                    item {
-                        Text("Select Calendars", style = MaterialTheme.typography.titleMedium)
-                    }
-                    item {
-                        CalendarPicker(
-                            calendars = uiState.calendarPicker.calendars,
-                            selectedIds = uiState.calendarPicker.selectedIds,
-                            onToggleSelection = viewModel::toggleCalendarSelection,
-                            modifier = Modifier.fillMaxWidth().height(200.dp)
-                        )
+                        if (uiState.onlineCalendarPicker.permissionDenied) {
+                            OutlinedButton(
+                                onClick = { viewModel.openAppSettings(context) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Open App Settings")
+                            }
+                        }
                     }
                 }
             }
