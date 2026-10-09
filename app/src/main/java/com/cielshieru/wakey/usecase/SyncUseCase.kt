@@ -21,6 +21,17 @@ class SyncUseCase @Inject constructor(
         )
     }
 
+    fun syncImmediately() {
+        val request = OneTimeWorkRequestBuilder<SyncWorker>()
+            .addTag("sync_work")
+            .build()
+        workManager.enqueueUniqueWork(
+            "sync_work",
+            ExistingWorkPolicy.REPLACE,
+            request
+        )
+    }
+
     fun cancelSync() {
         workManager.cancelUniqueWork("sync_work")
     }
