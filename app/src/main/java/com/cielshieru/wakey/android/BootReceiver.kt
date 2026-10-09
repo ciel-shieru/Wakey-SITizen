@@ -20,7 +20,7 @@ import com.cielshieru.wakey.worker.SyncWorker
  * time. The one-time sync executes the full sync pipeline (same as the
  * periodic sync) and re-arms the alarms from persisted config.
  *
- * Declared `exported="false"` in the manifest with the
+ * Declared `exported="true"` in the manifest with the
  * `RECEIVE_BOOT_COMPLETED` permission (ADR-0007/0008): `BOOT_COMPLETED` is a
  * system broadcast that no external component can send.
  */

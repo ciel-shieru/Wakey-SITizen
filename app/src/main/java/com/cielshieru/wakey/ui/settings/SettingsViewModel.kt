@@ -248,9 +248,9 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode
             )
             alarmRepository.saveConfig(config)
-            syncUseCase.syncImmediately()
             syncUseCase.cancelSync()
             syncUseCase.schedulePeriodicSync()
+            syncUseCase.syncImmediately()
             _configSaved.emit(Unit)
         }
     }
