@@ -397,65 +397,65 @@ fun SettingsScreen(
                         supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
                     )
                 }
+            }
 
-                if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                    item {
-                        Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                    }
+            if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                item {
+                    Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                }
 
-                    item {
-                        ExposedDropdownCalendarPicker(
-                            state = uiState.onlineCalendarPicker,
-                            label = "Online Timetable Calendar",
-                            onDropdownToggle = viewModel::toggleOnlineDropdown,
-                            onSelectCalendar = viewModel::selectOnlineCalendar
-                        )
-                    }
+                item {
+                    ExposedDropdownCalendarPicker(
+                        state = uiState.onlineCalendarPicker,
+                        label = "Online Timetable Calendar",
+                        onDropdownToggle = viewModel::toggleOnlineDropdown,
+                        onSelectCalendar = viewModel::selectOnlineCalendar
+                    )
+                }
 
-                    item {
-                        Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                    }
+                item {
+                    Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                }
 
-                    item {
-                        ExposedDropdownCalendarPicker(
-                            state = uiState.campusCalendarPicker,
-                            label = "In-Campus Timetable Calendar",
-                            onDropdownToggle = viewModel::toggleCampusDropdown,
-                            onSelectCalendar = viewModel::selectCampusCalendar
-                        )
-                    }
+                item {
+                    ExposedDropdownCalendarPicker(
+                        state = uiState.campusCalendarPicker,
+                        label = "In-Campus Timetable Calendar",
+                        onDropdownToggle = viewModel::toggleCampusDropdown,
+                        onSelectCalendar = viewModel::selectCampusCalendar
+                    )
+                }
 
-                    item {
-                        if (!uiState.onlineCalendarPicker.permissionGranted) {
-                            Button(
-                                onClick = { permissionLauncher.launch(READ_CALENDAR) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Grant Calendar Permission")
-                            }
-                        }
-                    }
-
-                    item {
-                        if (uiState.onlineCalendarPicker.permissionGranted &&
-                            uiState.onlineCalendarPicker.calendars.isEmpty() &&
-                            !uiState.onlineCalendarPicker.isLoading
+                item {
+                    if (!uiState.onlineCalendarPicker.permissionGranted) {
+                        Button(
+                            onClick = { permissionLauncher.launch(READ_CALENDAR) },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                "No readable calendars found on this device",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Text("Grant Calendar Permission")
                         }
                     }
+                }
 
-                    item {
-                        if (uiState.onlineCalendarPicker.permissionDenied) {
-                            OutlinedButton(
-                                onClick = { viewModel.openAppSettings(context) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Open App Settings")
-                            }
+                item {
+                    if (uiState.onlineCalendarPicker.permissionGranted &&
+                        uiState.onlineCalendarPicker.calendars.isEmpty() &&
+                        !uiState.onlineCalendarPicker.isLoading
+                    ) {
+                        Text(
+                            "No readable calendars found on this device",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                item {
+                    if (uiState.onlineCalendarPicker.permissionDenied) {
+                        OutlinedButton(
+                            onClick = { viewModel.openAppSettings(context) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Open App Settings")
                         }
                     }
                 }
