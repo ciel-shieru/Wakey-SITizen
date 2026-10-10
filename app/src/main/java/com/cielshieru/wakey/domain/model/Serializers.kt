@@ -1,6 +1,8 @@
 package com.cielshieru.wakey.domain.model
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
@@ -8,7 +10,7 @@ import java.time.LocalDate
 
 internal object InstantSerializer : KSerializer<Instant> {
     override val descriptor =
-        kotlinx.serialization.descriptors.PrimitiveKind.LONG.toPrimitiveDescriptor("Instant")
+        PrimitiveSerialDescriptor("com.cielshieru.wakey.domain.model.Instant", PrimitiveKind.LONG)
 
     override fun serialize(encoder: Encoder, value: Instant) {
         encoder.encodeLong(value.toEpochMilli())
@@ -21,7 +23,7 @@ internal object InstantSerializer : KSerializer<Instant> {
 
 internal object LocalDateSerializer : KSerializer<LocalDate> {
     override val descriptor =
-        kotlinx.serialization.descriptors.PrimitiveKind.STRING.toPrimitiveDescriptor("LocalDate")
+        PrimitiveSerialDescriptor("com.cielshieru.wakey.domain.model.LocalDate", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: LocalDate) {
         encoder.encodeString(value.toString())
