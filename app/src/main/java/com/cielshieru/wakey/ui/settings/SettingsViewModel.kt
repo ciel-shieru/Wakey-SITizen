@@ -76,6 +76,8 @@ class SettingsViewModel @Inject constructor(
     private val syncUseCase: SyncOperations
 ) : ViewModel() {
 
+    private var hasLoadedInitialConfig = false
+
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
@@ -113,7 +115,10 @@ class SettingsViewModel @Inject constructor(
                     targetDateMillis = debug.targetDateMillis
                 )
             }.collect { state ->
-                _uiState.value = state
+                if (!hasLoadedInitialConfig) {
+                    _uiState.value = state
+                    hasLoadedInitialConfig = true
+                }
             }
         }
     }
@@ -368,6 +373,8 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode
             )
             alarmRepository.saveConfig(config)
+            saveDebugConfig()
+
             syncUseCase.cancelSync()
             syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.KEEP)
             syncUseCase.syncImmediately(SyncUseCase.UNIQUE_IMMEDIATE_SYNC)
