@@ -32,6 +32,7 @@ ADR-0001 established that wakey-sitizen should minimize third-party libraries, u
 | WorkManager Runtime | `androidx.work` | `work-runtime-ktx:2.9.0` | Background sync (required by requirements). |
 | Navigation Compose | `androidx.navigation` | `navigation-compose:2.8.0` | Navigation between screens. ~100 lines of manual nav is error-prone; Compose Navigation is well-tested and minimal. First-party Jetpack library. |
 | Kotlinx Serialization JSON | `org.jetbrains.kotlinx` | `kotlinx-serialization-json:1.7.0` | JSON serialization for the wakey-sitizen API response. First-party Jet/Kotlin ecosystem library. |
+| OkHttp | `com.squareup.okhttp3` | `okhttp:5.5.0` | HTTP client for fetching timetable JSON from remote SIT-ICS-Go servers. Replaced `java.net.http.HttpClient` which is not available on Android. OkHttp is well-tested, lightweight, and supports all Android API levels. |
 
 ### Test dependencies
 
@@ -50,7 +51,6 @@ The following components are self-made, requiring no third-party libraries:
 
 | Component | Approx. lines | Justification for self-made |
 |-----------|---------------|----------------------------|
-| HTTP client (`java.net.http.HttpClient` wrapper) | ~50 | `java.net.http.HttpClient` is built into Android API 36+. Simple GET requests only. OkHttp or Retrofit would add significant dependency surface for minimal benefit. |
 | AlarmManager wrapper | ~100 | Straightforward platform API. No abstraction layer needed. |
 | Timezone/date math | ~50 | `java.time` and `android.icu` are built into the platform. |
 | Device calendar queries | ~150 | `CalendarContract` is well-documented. Queries are simple projections. |
@@ -62,8 +62,7 @@ The following components are self-made, requiring no third-party libraries:
 
 | Library | Reason |
 |---------|--------|
-| Retrofit | `java.net.http.HttpClient` is sufficient for simple GET requests. Retrofit adds ~200KB of dependency for features (interceptors, retry, complex serialization) this app does not need. |
-| OkHttp | Same rationale as Retrofit. `java.net.http.HttpClient` is built into the platform. |
+| Retrofit | OkHttp is sufficient for simple GET requests. Retrofit adds ~200KB of dependency for features (interceptors, retry, complex serialization) this app does not need. |
 | Moshi / Gson | `kotlinx.serialization` is the preferred Kotlin JSON library and integrates with the Kotlin compiler plugin. Moshi and Gson are Java-focused and add unnecessary dependency surface. |
 | RxJava | Coroutines are the preferred async model in modern Android. RxJava adds ~500KB for reactive streams that this app does not need. |
 | Room | Override state is a handful of key-value pairs. DataStore Preferences is sufficient. Room is overkill. |
@@ -114,9 +113,9 @@ Hilt adds ~200 lines of boilerplate (annotations, modules, components) but keeps
 
 `kotlinx.serialization` is the official Kotlin JSON library, integrates with the Kotlin compiler plugin for compile-time checks, and produces smaller binaries than Gson or Moshi. It is a first-party Jet/Kotlin ecosystem library.
 
-### Why java.net.http.HttpClient over OkHttp/Retrofit
+### Why OkHttp over java.net.http.HttpClient/Retrofit
 
-The app makes only 2 simple GET requests per sync (one per discovery mode). `java.net.http.HttpClient` is built into Android API 36+ and handles these requests without any dependency. OkHttp or Retrofit would add significant dependency surface for features (connection pooling, interceptors, complex serialization) this app does not need.
+The app makes only 2 simple GET requests per sync (one per discovery mode). `java.net.http.HttpClient` is not available on Android, so OkHttp is used instead. OkHttp is well-tested, lightweight, and supports all Android API levels with features like connection pooling, transparent GZIP, and automatic retries. Retrofit would add significant dependency surface for features (complex serialization, interface-based APIs) this app does not need.
 
 ### Why no Room
 
@@ -126,14 +125,14 @@ Override state is a handful of key-value pairs (type, value, expiresAt). DataSto
 
 ### Positive
 
-- **Minimal surface**: 6 production dependencies, all first-party Jetpack or Jet/Kotlin ecosystem libraries.
+- **Minimal surface**: 7 production dependencies, all first-party Jetpack, Jet/Kotlin ecosystem, or well-tested third-party libraries.
 - **No GMS**: Zero Google Play Services dependencies.
 - **Pinned versions**: All versions are pinned in the version catalog, verifiable against official release channels.
-- **Self-made where possible**: 6 components are self-made with zero dependencies, totaling ~410 lines of code.
+- **Self-made where possible**: 5 components are self-made with zero dependencies, totaling ~360 lines of code.
 
 ### Negative
 
-- **Limited flexibility**: Using `java.net.http.HttpClient` means no connection pooling, no custom interceptors, and no built-in retry logic. If the app needs these features in the future, a library like OkHttp would need to be added.
+- **Limited flexibility**: Using OkHttp means no custom interceptors without additional configuration, and no built-in retry logic beyond OkHttp's defaults. If the app needs these features in the future, Retrofit could be added.
 - **Hilt compile time**: Hilt's annotation processing adds ~10-20 seconds to build times. This is an accepted tradeoff for the DI benefits.
 
 ### Neutral / operational
@@ -146,4 +145,4 @@ Override state is a handful of key-value pairs (type, value, expiresAt). DataSto
 - [Hilt](https://developer.android.com/training/dependency-injection/hilt-android) — Jetpack Hilt dependency injection
 - [DataStore](https://developer.android.com/topic/arc/data-store) — Jetpack DataStore
 - [kotlinx.serialization](https://kotlinlang.org/docs/serialization.html) — Kotlin JSON serialization
-- [java.net.http.HttpClient](https://docs.oracle.com/en/java/javase/17/docs/api/java.net.http/java/net/http/HttpClient.html) — HTTP client available on Android API 36+
+- [OkHttp](https://square.github.io/okhttp/) — Square OkHttp HTTP client

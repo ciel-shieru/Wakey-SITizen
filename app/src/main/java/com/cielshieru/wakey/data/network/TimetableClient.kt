@@ -1,16 +1,14 @@
 package com.cielshieru.wakey.data.network
 
 import com.cielshieru.wakey.data.model.WakeyResponse
+import com.cielshieru.wakey.data.store.JsonConfig
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.io.IOException
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import com.cielshieru.wakey.data.store.JsonConfig
 
 /**
  * Fetches the wakey-sitizen timetable JSON from a SIT-ICS-Go server
@@ -20,9 +18,8 @@ import com.cielshieru.wakey.data.store.JsonConfig
  * GET {remoteServerUrl}/wakey-sitizen/timetable.json
  * ```
  *
- * Self-made on purpose (ADR-0009): `java.net.http.HttpClient` is built into
- * Android API 36+ and simple GET requests are all this app needs — OkHttp or
- * Retrofit would add dependency surface for no benefit.
+ * Uses OkHttp (ADR-0009): `java.net.http.HttpClient` is not available on Android.
+ * OkHttp is a well-tested, lightweight HTTP client that works across all Android API levels.
  *
  * The remote server URL is user-configured, so it is resolved through [remoteServerProvider]
  * at fetch time (the provider reads it from DataStore).
@@ -40,6 +37,13 @@ class TimetableClient(
         data class Success(val response: WakeyResponse) : Result
         data class Error(val cause: Throwable) : Result
     }
+
+    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(CONNECT_TIMEOUT)
+        .readTimeout(CONNECT_TIMEOUT)
+        .writeTimeout(CONNECT_TIMEOUT)
+        .callTimeout(CONNECT_TIMEOUT)
+        .build()
 
     suspend fun fetch(): Result = try {
         val remoteServerUrl = remoteServerProvider.remoteServerUrl.first().trim().trimEnd('/')
@@ -66,15 +70,13 @@ class TimetableClient(
     }
 
     private fun httpGet(url: String): String {
-        val client = HttpClient.newBuilder()
-            .connectTimeout(CONNECT_TIMEOUT)
-            .build()
-        val request = HttpRequest.newBuilder(URI.create(url)).GET().build()
-        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
-        if (response.statusCode() !in 200..299) {
-            throw IOException("HTTP request failed with status ${response.statusCode()}")
+        val request = Request.Builder().url(url).get().build()
+        okHttpClient.newCall(request).execute().use { response ->
+            if (response.code !in 200..299) {
+                throw IOException("HTTP request failed with status ${response.code}")
+            }
+            return response.body.string()
         }
-        return response.body()
     }
 
     companion object {
