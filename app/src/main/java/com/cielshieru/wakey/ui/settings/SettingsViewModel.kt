@@ -12,11 +12,14 @@ import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.PermissionChecker
+import androidx.work.ExistingPeriodicWorkPolicy
+import com.cielshieru.wakey.usecase.SyncOperations
 import com.cielshieru.wakey.usecase.SyncUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -42,7 +46,9 @@ data class SettingsUiState(
     val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
     val onlineCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
     val campusCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
-    val permissionStatus: List<PermissionEntry> = emptyList()
+    val permissionStatus: List<PermissionEntry> = emptyList(),
+    val debugModeEnabled: Boolean = false,
+    val targetDateMillis: Long? = null
 )
 
 data class CalendarDropdownUiState(
@@ -67,7 +73,7 @@ class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val permissionChecker: PermissionChecker,
     private val datastore: DataStore<Preferences>,
-    private val syncUseCase: SyncUseCase
+    private val syncUseCase: SyncOperations
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -81,12 +87,15 @@ class SettingsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            alarmRepository.config.collect { config ->
+            combine(
+                alarmRepository.config,
+                alarmRepository.debugConfig
+            ) { config, debug ->
                 val calendarIds = config.selectedCalendarIds
                 val onlineId = calendarIds.getOrNull(0)
                 val campusId = if (calendarIds.size > 1) calendarIds[1] else null
 
-                _uiState.value = SettingsUiState(
+                SettingsUiState(
                     onlineOffset = config.onlineOffsetMinutes,
                     campusOffset = config.campusOffsetMinutes,
                     repeatInterval = config.repeatIntervalMinutes,
@@ -99,8 +108,12 @@ class SettingsViewModel @Inject constructor(
                     remoteServerUrl = config.remoteServerUrl,
                     discoveryMode = config.discoveryMode,
                     onlineCalendarPicker = _uiState.value.onlineCalendarPicker.copy(selectedId = onlineId),
-                    campusCalendarPicker = _uiState.value.campusCalendarPicker.copy(selectedId = campusId)
+                    campusCalendarPicker = _uiState.value.campusCalendarPicker.copy(selectedId = campusId),
+                    debugModeEnabled = debug.debugModeEnabled,
+                    targetDateMillis = debug.targetDateMillis
                 )
+            }.collect { state ->
+                _uiState.value = state
             }
         }
     }
@@ -153,6 +166,29 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleBedtimeEnabled(enabled: Boolean) {
         _uiState.update { it.copy(bedtimeEnabled = enabled) }
+    }
+
+    fun toggleDebugMode(enabled: Boolean) {
+        if (!enabled) {
+            _uiState.update { it.copy(debugModeEnabled = false, targetDateMillis = null) }
+        } else {
+            _uiState.update { it.copy(debugModeEnabled = true) }
+        }
+    }
+
+    fun setTargetDate(millis: Long?) {
+        _uiState.update { it.copy(targetDateMillis = millis) }
+    }
+
+    fun saveDebugConfig() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val config = DebugConfig(
+                debugModeEnabled = state.debugModeEnabled,
+                targetDateMillis = state.targetDateMillis
+            )
+            alarmRepository.saveDebugConfig(config)
+        }
     }
 
     fun selectDiscoveryMode(mode: DiscoveryMode) {
@@ -333,8 +369,8 @@ class SettingsViewModel @Inject constructor(
             )
             alarmRepository.saveConfig(config)
             syncUseCase.cancelSync()
-            syncUseCase.schedulePeriodicSync()
-            syncUseCase.syncImmediately()
+            syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.KEEP)
+            syncUseCase.syncImmediately(SyncUseCase.UNIQUE_IMMEDIATE_SYNC)
             _syncEvent.emit(
                 SyncEvent.SyncTriggered(
                     source = "Settings save",

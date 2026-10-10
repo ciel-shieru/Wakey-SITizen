@@ -15,10 +15,11 @@ object AlarmComputer {
         events: List<TimetableEvent>,
         config: AlarmConfig,
         clock: Clock,
-        zoneProvider: ZoneProvider
+        zoneProvider: ZoneProvider,
+        targetDateOverride: java.time.LocalDate? = null
     ): List<AlarmSchedule> {
         val zone = zoneProvider.zone
-        val today = LocalDate.ofInstant(clock.now(), zone)
+        val today = targetDateOverride ?: LocalDate.ofInstant(clock.now(), zone)
         val tomorrow = today.plusDays(1)
 
         // Group events by the calendar day their DTSTART falls in.

@@ -1,10 +1,10 @@
 package com.cielshieru.wakey.domain.model
 
 import kotlinx.serialization.json.Json
+import org.junit.Test
+import org.junit.Assert.assertEquals
 import java.time.Instant
 import java.time.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class SerializersTest {
 

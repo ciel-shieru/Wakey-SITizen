@@ -14,6 +14,8 @@ import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
 import com.cielshieru.wakey.domain.port.RemoteServerProvider
 import com.cielshieru.wakey.domain.port.*
+import com.cielshieru.wakey.usecase.SyncOperations
+import com.cielshieru.wakey.usecase.SyncUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -105,4 +107,8 @@ object AppModule {
     @Provides
     @Singleton
     fun providePermissionChecker(pc: PlatformPermissionChecker): PermissionChecker = pc
+
+    @Provides
+    @Singleton
+    fun provideSyncOperations(syncUseCase: SyncUseCase): SyncOperations = syncUseCase
 }

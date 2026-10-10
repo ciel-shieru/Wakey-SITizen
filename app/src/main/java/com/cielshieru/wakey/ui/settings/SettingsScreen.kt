@@ -21,6 +21,10 @@ import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
+import java.text.DateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @Composable
 private fun ValidationSupportingText(
@@ -456,6 +460,126 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Open App Settings")
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text("Permissions", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Text("Debug", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Switch(
+                        checked = uiState.debugModeEnabled,
+                        onCheckedChange = viewModel::toggleDebugMode
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Enable debug mode")
+                }
+            }
+
+            if (uiState.debugModeEnabled) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Debug mode overrides may produce unexpected alarm behavior. Do not use in production.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    val context = LocalContext.current
+                    var showDatePicker by remember { mutableStateOf(false) }
+                    val selectedDateText = uiState.targetDateMillis?.let { millis ->
+                        val instant = Instant.ofEpochMilli(millis)
+                        val date = instant.atZone(ZoneId.systemDefault()).toLocalDate()
+                        DateFormat.getDateInstance(DateFormat.MEDIUM).format(java.util.Date(millis))
+                    } ?: "Select target date"
+
+                    Button(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(selectedDateText)
+                    }
+
+                    if (showDatePicker) {
+                        var selectedInstant by remember { mutableStateOf<Instant?>(null) }
+                        val initialDate = uiState.targetDateMillis?.let { millis ->
+                            Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        }
+                        val datePickerState = rememberDatePickerState(
+                            initialSelectedDate = initialDate
+                        )
+                        DatePickerDialog(
+                            onDismissRequest = { showDatePicker = false },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    datePickerState.selectedDateMillis?.let { millis ->
+                                        viewModel.setTargetDate(millis)
+                                    }
+                                    showDatePicker = false
+                                }) {
+                                    Text("OK")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = {
+                                    showDatePicker = false
+                                }) {
+                                    Text("Cancel")
+                                }
+                            }
+                        ) {
+                            DatePicker(
+                                state = datePickerState,
+                                showModeToggle = true
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = {
+                            viewModel.setTargetDate(null)
+                        }) {
+                            Text("Clear date")
                         }
                     }
                 }

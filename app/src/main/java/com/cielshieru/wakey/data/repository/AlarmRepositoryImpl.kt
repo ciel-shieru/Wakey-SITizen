@@ -7,11 +7,14 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
+import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
+import com.cielshieru.wakey.data.store.DebugConfigStore.saveDebugConfig
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.overridesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.saveOverrides
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
+import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import kotlinx.coroutines.flow.Flow
@@ -56,5 +59,11 @@ class AlarmRepositoryImpl(
             datastore.saveOverrides(filtered)
         }
         return expired
+    }
+
+    override val debugConfig: Flow<DebugConfig> = datastore.data.debugConfigFlow()
+
+    override suspend fun saveDebugConfig(config: DebugConfig) {
+        datastore.saveDebugConfig(config)
     }
 }

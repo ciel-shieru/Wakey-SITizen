@@ -2,6 +2,7 @@ package com.cielshieru.wakey.fakes
 
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
+import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import kotlinx.coroutines.flow.Flow
@@ -21,9 +22,13 @@ class FakeAlarmRepository : AlarmRepository {
     private val _lastSyncTime = MutableStateFlow<Long?>(null)
     override val lastSyncTime: Flow<Long?> = _lastSyncTime
 
+    private val _debugConfig = MutableStateFlow(DebugConfig())
+    override val debugConfig: Flow<DebugConfig> = _debugConfig.asStateFlow()
+
     var savedConfig: AlarmConfig? = null
     var savedOverrides: List<ManualOverride>? = null
     var savedSchedules: List<AlarmSchedule>? = null
+    var savedDebugConfig: DebugConfig? = null
 
     override suspend fun saveConfig(config: AlarmConfig) {
         savedConfig = config
@@ -48,5 +53,10 @@ class FakeAlarmRepository : AlarmRepository {
             _overrides.value = current.filter { it.expiresAt > now }
         }
         return expired
+    }
+
+    override suspend fun saveDebugConfig(config: DebugConfig) {
+        savedDebugConfig = config
+        _debugConfig.value = config
     }
 }

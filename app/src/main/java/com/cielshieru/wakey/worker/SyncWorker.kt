@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.overridesFlow
@@ -32,6 +33,7 @@ import com.cielshieru.wakey.domain.port.Clock
 import com.cielshieru.wakey.domain.port.ZoneProvider
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 
@@ -80,17 +82,38 @@ class SyncWorker @AssistedInject constructor(
         try {
             val config = dataStore.data.configFlow().first()
 
+            // Debug: read debug config and log diagnostic info.
+            val debugConfig = dataStore.data.debugConfigFlow().first()
+            val targetDateLocal = debugConfig.targetDateMillis?.let { millis ->
+                Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
+            }
+            if (debugConfig.debugModeEnabled) {
+                Log.d(DEBUG_TAG, "Debug mode active, targetDate=$targetDateLocal")
+            }
+
             // Step 1: fetch timetable (stale-while-revalidate on failure).
             val events = fetchTimetable(config, now, zone)
+
+            if (debugConfig.debugModeEnabled) {
+                Log.d(DEBUG_TAG, "Fetch complete: ${events.size} event(s) from server")
+            }
 
             // Step 2: parse and filter — drop BrightSpace/x-site events.
             val filteredEvents = events.filterNot {
                 it.courseCode.startsWith(BRIGHTSPACE_PREFIX, ignoreCase = true)
             }
 
+            if (debugConfig.debugModeEnabled) {
+                Log.d(DEBUG_TAG, "After filtering: ${filteredEvents.size} non-BrightSpace event(s)")
+            }
+
             // Step 3: compute alarm schedule (ADR-0003).
             val schedules =
-                AlarmComputer.computeSchedule(filteredEvents, config, clock, zoneProvider)
+                AlarmComputer.computeSchedule(filteredEvents, config, clock, zoneProvider, targetDateLocal)
+
+            if (debugConfig.debugModeEnabled) {
+                Log.d(DEBUG_TAG, "AlarmComputer produced ${schedules.size} schedule(s)")
+            }
 
             // Step 4: adjust for external events (ADR-0005), when enabled.
             val adjustedSchedules = if (config.externalEventEnabled) {
@@ -137,7 +160,8 @@ class SyncWorker @AssistedInject constructor(
             }
 
             // Step 7: compute and set the bedtime reminder (ADR-0004).
-            val bedtime = BedtimeComputer.compute(finalSchedules, config, now)
+            val targetDateInstant = targetDateLocal?.atStartOfDay(zone)?.toInstant() ?: now
+            val bedtime = BedtimeComputer.compute(finalSchedules, config, if (debugConfig.debugModeEnabled) targetDateInstant else now)
             if (bedtime != null) {
                 alarmService.setBedtimeReminder(bedtime.triggerAt.toEpochMilli())
             } else {
@@ -219,6 +243,7 @@ class SyncWorker @AssistedInject constructor(
 
     companion object {
         private const val TAG = "SyncWorker"
+        private const val DEBUG_TAG = "WakeyDebug"
         private const val BRIGHTSPACE_PREFIX = "brightspace-"
         const val BACKOFF_DELAY_MILLIS = 5L * 60 * 1000L // 5 minutes for exponential backoff
         private val LAST_SYNC_TIME_KEY = stringPreferencesKey("last_sync_time")

@@ -8,7 +8,7 @@ import javax.inject.Inject
 
 class SyncUseCase @Inject constructor(
     private val workManager: WorkManager
-) {
+) : SyncOperations {
 
     companion object {
         const val UNIQUE_IMMEDIATE_SYNC = "sync_immediate"
@@ -27,7 +27,7 @@ class SyncUseCase @Inject constructor(
         }
     }
 
-    fun schedulePeriodicSync(policy: ExistingPeriodicWorkPolicy = ExistingPeriodicWorkPolicy.KEEP) {
+    override fun schedulePeriodicSync(policy: ExistingPeriodicWorkPolicy) {
         val request: PeriodicWorkRequest = PeriodicWorkRequestBuilder<SyncWorker>(
             12, TimeUnit.HOURS,
             30, TimeUnit.MINUTES
@@ -40,7 +40,7 @@ class SyncUseCase @Inject constructor(
         )
     }
 
-    fun syncImmediately(uniqueName: String = UNIQUE_IMMEDIATE_SYNC) {
+    override fun syncImmediately(uniqueName: String) {
         val request = OneTimeWorkRequestBuilder<SyncWorker>()
             .build()
         workManager.enqueueUniqueWork(
@@ -50,7 +50,7 @@ class SyncUseCase @Inject constructor(
         )
     }
 
-    fun cancelSync() {
+    override fun cancelSync() {
         workManager.cancelUniqueWork(UNIQUE_IMMEDIATE_SYNC)
         workManager.cancelUniqueWork(UNIQUE_PERIODIC_SYNC)
         workManager.cancelUniqueWork(BootReceiver.UNIQUE_BOOT_SYNC)
