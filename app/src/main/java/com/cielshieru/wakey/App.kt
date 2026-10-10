@@ -4,6 +4,7 @@ import android.app.Application
 import android.widget.Toast
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import androidx.work.ExperimentalConfigurationApi
 import androidx.work.ExistingPeriodicWorkPolicy
 import com.cielshieru.wakey.android.NotificationService
 import com.cielshieru.wakey.usecase.SyncUseCase
@@ -17,9 +18,11 @@ class App : Application(), Configuration.Provider {
 
     @Inject lateinit var syncUseCase: SyncUseCase
 
+    @OptIn(ExperimentalConfigurationApi::class)
     private val _workManagerConfiguration: Configuration by lazy {
         Configuration.Builder()
             .setWorkerFactory(workerFactory)
+            .setMarkingJobsAsImportantWhileForeground(false)
             .build()
     }
 
