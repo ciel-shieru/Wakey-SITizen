@@ -38,6 +38,7 @@ class FakeAlarmRepository : AlarmRepository {
 
     override suspend fun saveConfig(config: AlarmConfig) {
         savedConfig = config
+        _config.value = config
     }
 
     override suspend fun saveOverride(override: ManualOverride) {

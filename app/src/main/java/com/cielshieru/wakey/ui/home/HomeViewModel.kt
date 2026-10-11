@@ -2,6 +2,7 @@ package com.cielshieru.wakey.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cielshieru.wakey.domain.BedtimeComputer
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
@@ -31,6 +32,7 @@ private data class quadruple<A, B, C, D>(
 
 data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
+    val bedtimeText: String? = null,
     val overrideText: String? = null,
     val isSyncing: Boolean = false,
     val staleDataWarning: String? = null,
@@ -132,6 +134,20 @@ class HomeViewModel @Inject constructor(
                         }
                     }
 
+                    val bedtimeText = if (!schedules.isNullOrEmpty() && config.bedtimeEnabled) {
+                        BedtimeComputer.compute(schedules, config, now)?.let { reminder ->
+                            val triggerLocal = reminder.triggerAt.atZone(ZoneId.systemDefault())
+                            val hour12 = if (triggerLocal.hour == 0) 12
+                            else if (triggerLocal.hour > 12) triggerLocal.hour - 12
+                            else triggerLocal.hour
+                            val period = if (triggerLocal.hour < 12) "AM" else "PM"
+                            val minuteStr = triggerLocal.minute.toString().padStart(2, '0')
+                            "Bedtime: $hour12:$minuteStr $period"
+                        }
+                    } else {
+                        null
+                    }
+
                     val scheduledAlarms = if (schedules.isNullOrEmpty()) {
                         emptyList()
                     } else {
@@ -167,6 +183,7 @@ class HomeViewModel @Inject constructor(
 
                     _uiState.value = HomeUiState(
                         nextAlarmText = nextAlarmText,
+                        bedtimeText = bedtimeText,
                         overrideText = overrideText,
                         scheduledAlarms = scheduledAlarms
                     )

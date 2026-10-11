@@ -319,4 +319,106 @@ class HomeViewModelTest {
         assertTrue(fakeAlarmRepository.cancelledRequestCodes.contains(requestCode))
         assertTrue(fakeSyncUseCase.syncCalled)
     }
+
+    @Test
+    fun `uiState shows bedtimeText when enabled and schedules exist`() = runTest {
+        val zone = ZoneId.systemDefault()
+        val now = fakeClock.now()
+        val firstAlarm = now.plusSeconds(12 * 3600)
+        val alarmSchedule = AlarmSchedule(
+            day = LocalDate.now(zone),
+            alarms = listOf(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = firstAlarm,
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 0)
+                )
+            ),
+            firstAlarmTime = firstAlarm
+        )
+        fakeAlarmRepository.saveSchedules(listOf(alarmSchedule))
+        fakeAlarmRepository.saveConfig(
+            com.cielshieru.wakey.domain.model.AlarmConfig(
+                bedtimeEnabled = true,
+                targetSleepDurationHours = 8,
+                bedtimeReminderOffsetMinutes = 30
+            )
+        )
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.bedtimeText)
+        assertTrue(state.bedtimeText!!.startsWith("Bedtime:"))
+    }
+
+    @Test
+    fun `uiState bedtimeText is null when bedtime disabled`() = runTest {
+        val zone = ZoneId.systemDefault()
+        val now = fakeClock.now()
+        val firstAlarm = now.plusSeconds(8 * 3600 + 30 * 60)
+        val alarmSchedule = AlarmSchedule(
+            day = LocalDate.now(zone),
+            alarms = listOf(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = firstAlarm,
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 0)
+                )
+            ),
+            firstAlarmTime = firstAlarm
+        )
+        fakeAlarmRepository.saveSchedules(listOf(alarmSchedule))
+        fakeAlarmRepository.saveConfig(
+            com.cielshieru.wakey.domain.model.AlarmConfig(
+                bedtimeEnabled = false,
+                targetSleepDurationHours = 8,
+                bedtimeReminderOffsetMinutes = 30
+            )
+        )
+
+        val state = viewModel.uiState.value
+        assertNull(state.bedtimeText)
+    }
+
+    @Test
+    fun `uiState bedtimeText is null when no schedules`() = runTest {
+        fakeAlarmRepository.saveConfig(
+            com.cielshieru.wakey.domain.model.AlarmConfig(
+                bedtimeEnabled = true,
+                targetSleepDurationHours = 8,
+                bedtimeReminderOffsetMinutes = 30
+            )
+        )
+
+        val state = viewModel.uiState.value
+        assertNull(state.bedtimeText)
+    }
+
+    @Test
+    fun `uiState bedtimeText is null when reminder already passed`() = runTest {
+        val zone = ZoneId.systemDefault()
+        val now = fakeClock.now()
+        val firstAlarm = now.plusSeconds(30 * 60)
+        val alarmSchedule = AlarmSchedule(
+            day = LocalDate.now(zone),
+            alarms = listOf(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = firstAlarm,
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 0)
+                )
+            ),
+            firstAlarmTime = firstAlarm
+        )
+        fakeAlarmRepository.saveSchedules(listOf(alarmSchedule))
+        fakeAlarmRepository.saveConfig(
+            com.cielshieru.wakey.domain.model.AlarmConfig(
+                bedtimeEnabled = true,
+                targetSleepDurationHours = 8,
+                bedtimeReminderOffsetMinutes = 30
+            )
+        )
+
+        val state = viewModel.uiState.value
+        assertNull(state.bedtimeText)
+    }
 }

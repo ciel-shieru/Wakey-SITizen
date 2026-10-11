@@ -52,11 +52,23 @@ fun HomeScreen(
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = uiState.nextAlarmText,
+                Column(
                     modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.headlineMedium
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    uiState.bedtimeText?.let { text ->
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Text(
+                        text = uiState.nextAlarmText,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                }
             }
 
             uiState.overrideText?.let { text ->
