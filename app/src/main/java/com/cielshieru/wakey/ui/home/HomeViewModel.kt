@@ -6,6 +6,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
+import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.model.OverrideType
 import com.cielshieru.wakey.domain.port.AlarmRepository
@@ -15,11 +16,17 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+
+private data class quadruple<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)
 
 data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
@@ -67,7 +74,10 @@ class HomeViewModel @Inject constructor(
                 .combine(alarmRepository.config) { pair: Pair<List<AlarmSchedule>?, List<ManualOverride>>, config: AlarmConfig ->
                     Triple(pair.first, pair.second, config)
                 }
-                .collect { (schedules, overrides, _) ->
+                .combine(alarmRepository.debugConfig) { triple: Triple<List<AlarmSchedule>?, List<ManualOverride>, AlarmConfig>, debugConfig: DebugConfig ->
+                    quadruple(triple.first, triple.second, triple.third, debugConfig)
+                }
+                .collect { (schedules, overrides, config, debugConfig) ->
                     val activeOverride = overrides.filter { it.expiresAt > Instant.now() }
                         .maxByOrNull { it.expiresAt.toEpochMilli() }
 
@@ -86,10 +96,16 @@ class HomeViewModel @Inject constructor(
                         null -> null
                     }
 
+                    val now = if (debugConfig.debugModeEnabled && debugConfig.targetDateMillis != null) {
+                        val targetDateLocal = Instant.ofEpochMilli(debugConfig.targetDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
+                        targetDateLocal.atStartOfDay(ZoneId.systemDefault()).toInstant()
+                    } else {
+                        clock.now()
+                    }
+
                     val nextAlarmText = if (schedules.isNullOrEmpty()) {
                         "No alarms set"
                     } else {
-                        val now = clock.now()
                         val zone = ZoneId.systemDefault()
                         val firstUpcoming = schedules
                             .flatMap { it.alarms }
