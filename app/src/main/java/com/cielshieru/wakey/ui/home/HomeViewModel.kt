@@ -9,6 +9,7 @@ import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.model.OverrideType
 import com.cielshieru.wakey.domain.port.AlarmRepository
+import com.cielshieru.wakey.domain.port.Clock
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -50,7 +51,8 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
-    private val workManager: WorkManager
+    private val workManager: WorkManager,
+    private val clock: Clock
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -87,7 +89,7 @@ class HomeViewModel @Inject constructor(
                     val nextAlarmText = if (schedules.isNullOrEmpty()) {
                         "No alarms set"
                     } else {
-                        val now = Instant.now()
+                        val now = clock.now()
                         val zone = ZoneId.systemDefault()
                         val firstUpcoming = schedules
                             .flatMap { it.alarms }
