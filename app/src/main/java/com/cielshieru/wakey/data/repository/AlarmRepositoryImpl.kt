@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
@@ -23,7 +24,8 @@ import kotlinx.coroutines.flow.map
 import java.time.Instant
 
 class AlarmRepositoryImpl(
-    private val datastore: DataStore<Preferences>
+    private val datastore: DataStore<Preferences>,
+    private val alarmService: AlarmService
 ) : AlarmRepository {
 
     private val LAST_SYNC_TIME_KEY = stringPreferencesKey("last_sync_time")
@@ -69,5 +71,9 @@ class AlarmRepositoryImpl(
 
     override suspend fun saveDebugConfig(config: DebugConfig) {
         datastore.saveDebugConfig(config)
+    }
+
+    override suspend fun cancelAlarm(requestCode: Int) {
+        alarmService.cancelAlarmByRequestCode(requestCode)
     }
 }

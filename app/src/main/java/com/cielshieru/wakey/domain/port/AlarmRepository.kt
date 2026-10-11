@@ -16,6 +16,7 @@ interface AlarmRepository {
     suspend fun saveSchedules(schedules: List<AlarmSchedule>)
     suspend fun clearExpiredOverrides(): Int
     suspend fun clearAllOverrides()
+    suspend fun cancelAlarm(requestCode: Int)
     val debugConfig: Flow<DebugConfig>
     suspend fun saveDebugConfig(config: DebugConfig)
 }

@@ -33,6 +33,7 @@ object OverrideResolver {
      * Applies a manual override to a computed schedule (ADR-0006):
      * - SNOOZE: shifts every alarm (and the first-alarm time) later.
      * - SKIP_TOMORROW: suppresses all alarms for the day.
+     * - SKIP_ALARM: removes only the alarm matching the override value timestamp.
      * - CUSTOM_TIME: replaces the base time, preserving the repeat interval
      *   and count of the original schedule.
      */
@@ -53,6 +54,22 @@ object OverrideResolver {
             }
             OverrideType.SKIP_TOMORROW -> {
                 schedule.copy(alarms = emptyList())
+            }
+            OverrideType.SKIP_ALARM -> {
+                val requestCode = override.value.toIntOrNull()
+                if (requestCode == null) return schedule
+                val wasRemoved = schedule.alarms.any { it.requestCode == requestCode }
+                val remaining = schedule.alarms.filter { it.requestCode != requestCode }
+                schedule.copy(
+                    alarms = remaining,
+                    firstAlarmTime = if (wasRemoved && remaining.isNotEmpty()) {
+                        remaining.minByOrNull { it.triggerAt.toEpochMilli() }?.triggerAt
+                    } else if (wasRemoved) {
+                        null
+                    } else {
+                        schedule.firstAlarmTime
+                    }
+                )
             }
             OverrideType.CUSTOM_TIME -> {
                 val parts = override.value.split(":")

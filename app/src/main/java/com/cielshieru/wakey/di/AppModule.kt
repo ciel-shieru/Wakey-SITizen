@@ -97,8 +97,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAlarmRepository(
-        datastore: DataStore<Preferences>
-    ): AlarmRepository = AlarmRepositoryImpl(datastore)
+        datastore: DataStore<Preferences>,
+        alarmService: AlarmService
+    ): AlarmRepository = AlarmRepositoryImpl(datastore, alarmService)
 
     @Provides
     @Singleton

@@ -1,6 +1,8 @@
 package com.cielshieru.wakey.ui.home
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Schedule
@@ -160,6 +162,22 @@ fun HomeScreen(
                 Text("Reset Skip & Custom Time")
             }
 
+            if (uiState.scheduledAlarms.isNotEmpty()) {
+                Text("Scheduled Alarms", style = MaterialTheme.typography.titleMedium)
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.scheduledAlarms, key = { it.requestCode }) { alarm ->
+                        AlarmRow(
+                            alarm = alarm,
+                            onSkip = { viewModel.skipAlarm(alarm) }
+                        )
+                    }
+                }
+            }
+
             if (showTimePicker) {
                 val timePickerState = rememberTimePickerState()
                 ModalBottomSheet(
@@ -195,6 +213,55 @@ fun HomeScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlarmRow(
+    alarm: HomeUiState.ScheduledAlarm,
+    onSkip: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = alarm.formattedTime,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = if (alarm.isUpcoming) "Upcoming" else "Past",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (alarm.isUpcoming) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
+            if (alarm.isUpcoming) {
+                TextButton(onClick = onSkip) {
+                    Text("Skip")
+                }
+            } else {
+                Text(
+                    text = "Past",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

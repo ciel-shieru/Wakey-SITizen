@@ -68,6 +68,12 @@ class FakeAlarmRepository : AlarmRepository {
         _overrides.value = emptyList()
     }
 
+    val cancelledRequestCodes = mutableListOf<Int>()
+
+    override suspend fun cancelAlarm(requestCode: Int) {
+        cancelledRequestCodes.add(requestCode)
+    }
+
     override suspend fun saveDebugConfig(config: DebugConfig) {
         savedDebugConfig = config
         _debugConfig.value = config

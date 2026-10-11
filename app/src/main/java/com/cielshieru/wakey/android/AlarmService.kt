@@ -133,6 +133,18 @@ class AlarmService(private val context: Context) {
     }
 
     /**
+     * Cancels a single pending wake-up alarm by [requestCode].
+     *
+     * The lookup intent must carry the same [action] the PendingIntent was
+     * created with: a broadcast PendingIntent's identity is the triple
+     * (requestCode, target package, action), so a mismatched action would
+     * silently fail to find the pending intent.
+     */
+    fun cancelAlarmByRequestCode(requestCode: Int) {
+        cancelPending(requestCode, ACTION_WAKE_UP_ALARM)
+    }
+
+    /**
      * Cancels a single pending alarm by [requestCode].
      *
      * The lookup intent must carry the same [action] the PendingIntent was

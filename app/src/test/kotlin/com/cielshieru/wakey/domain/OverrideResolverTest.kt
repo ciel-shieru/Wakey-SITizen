@@ -1,11 +1,14 @@
 package com.cielshieru.wakey.domain
 
+import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.model.OverrideType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 class OverrideResolverTest {
 
@@ -67,5 +70,75 @@ class OverrideResolverTest {
 
         assertEquals(1, result.size)
         assertEquals(OverrideType.CUSTOM_TIME, result[0].type)
+    }
+
+    @Test
+    fun `applyOverride SKIP_ALARM removes matching alarm`() {
+        val triggerAt = Instant.parse("2026-10-15T07:30:00Z")
+        val schedule = AlarmSchedule(
+            day = LocalDate.of(2026, 10, 15),
+            alarms = listOf(
+                AlarmSchedule.Alarm(index = 0, triggerAt = triggerAt, requestCode = 123),
+                AlarmSchedule.Alarm(index = 1, triggerAt = triggerAt.plusSeconds(1800), requestCode = 124)
+            ),
+            firstAlarmTime = triggerAt
+        )
+
+        val override = ManualOverride(
+            type = OverrideType.SKIP_ALARM,
+            value = "123",
+            expiresAt = Instant.now().plusSeconds(86400)
+        )
+
+        val result = OverrideResolver.applyOverride(override, schedule, ZoneOffset.UTC)
+
+        assertEquals(1, result.alarms.size)
+        assertEquals(124, result.alarms[0].requestCode)
+    }
+
+    @Test
+    fun `applyOverride SKIP_ALARM with invalid value returns unchanged schedule`() {
+        val triggerAt = Instant.parse("2026-10-15T07:30:00Z")
+        val schedule = AlarmSchedule(
+            day = LocalDate.of(2026, 10, 15),
+            alarms = listOf(
+                AlarmSchedule.Alarm(index = 0, triggerAt = triggerAt, requestCode = 123)
+            ),
+            firstAlarmTime = triggerAt
+        )
+
+        val override = ManualOverride(
+            type = OverrideType.SKIP_ALARM,
+            value = "not-a-number",
+            expiresAt = Instant.now().plusSeconds(86400)
+        )
+
+        val result = OverrideResolver.applyOverride(override, schedule, ZoneOffset.UTC)
+
+        assertEquals(1, result.alarms.size)
+        assertEquals(123, result.alarms[0].requestCode)
+    }
+
+    @Test
+    fun `applyOverride SKIP_ALARM removes last alarm and clears firstAlarmTime`() {
+        val triggerAt = Instant.parse("2026-10-15T07:30:00Z")
+        val schedule = AlarmSchedule(
+            day = LocalDate.of(2026, 10, 15),
+            alarms = listOf(
+                AlarmSchedule.Alarm(index = 0, triggerAt = triggerAt, requestCode = 123)
+            ),
+            firstAlarmTime = triggerAt
+        )
+
+        val override = ManualOverride(
+            type = OverrideType.SKIP_ALARM,
+            value = "123",
+            expiresAt = Instant.now().plusSeconds(86400)
+        )
+
+        val result = OverrideResolver.applyOverride(override, schedule, ZoneOffset.UTC)
+
+        assertEquals(0, result.alarms.size)
+        assertNull(result.firstAlarmTime)
     }
 }

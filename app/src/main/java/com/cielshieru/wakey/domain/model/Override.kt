@@ -16,5 +16,6 @@ data class ManualOverride(
 enum class OverrideType {
     SNOOZE,
     SKIP_TOMORROW,
+    SKIP_ALARM,
     CUSTOM_TIME
 }

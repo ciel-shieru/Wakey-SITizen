@@ -250,4 +250,73 @@ class HomeViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.nextAlarmText.contains("No alarms set"))
     }
+
+    @Test
+    fun `uiState scheduledAlarms is empty when no schedules`() = runTest {
+        val state = viewModel.uiState.value
+        assertTrue(state.scheduledAlarms.isEmpty())
+    }
+
+    @Test
+    fun `uiState scheduledAlarms populated from schedules`() = runTest {
+        val zone = ZoneId.systemDefault()
+        val now = fakeClock.now()
+        val futureTime = now.plusSeconds(3600)
+        val pastTime = now.minusSeconds(3600)
+        val alarmSchedule = AlarmSchedule(
+            day = LocalDate.now(zone),
+            alarms = listOf(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = pastTime,
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 0)
+                ),
+                AlarmSchedule.Alarm(
+                    index = 1,
+                    triggerAt = futureTime,
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 1)
+                )
+            ),
+            firstAlarmTime = pastTime
+        )
+        fakeAlarmRepository.saveSchedules(listOf(alarmSchedule))
+
+        val state = viewModel.uiState.value
+        assertEquals(2, state.scheduledAlarms.size)
+        val pastAlarm = state.scheduledAlarms.find { it.formattedTime.contains("7:00 PM") || state.scheduledAlarms.indexOf(it) == 0 }
+        val upcomingAlarms = state.scheduledAlarms.filter { it.isUpcoming }
+        val pastAlarms = state.scheduledAlarms.filter { !it.isUpcoming }
+        assertEquals(1, upcomingAlarms.size)
+        assertEquals(1, pastAlarms.size)
+    }
+
+    @Test
+    fun `skipAlarm creates override, cancels alarm, and triggers sync`() = runTest {
+        val zone = ZoneId.systemDefault()
+        val futureTime = Instant.now().plusSeconds(3600)
+        val requestCode = AlarmSchedule.Alarm.computeRequestCode(LocalDate.now(zone), 0)
+        val alarmSchedule = AlarmSchedule(
+            day = LocalDate.now(zone),
+            alarms = listOf(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = futureTime,
+                    requestCode = requestCode
+                )
+            ),
+            firstAlarmTime = futureTime
+        )
+        fakeAlarmRepository.saveSchedules(listOf(alarmSchedule))
+
+        val scheduledAlarm = viewModel.uiState.value.scheduledAlarms.first { it.isUpcoming }
+
+        viewModel.skipAlarm(scheduledAlarm)
+
+        val overrides = fakeAlarmRepository.overrides.first()
+        assertEquals(1, overrides.size)
+        assertEquals(com.cielshieru.wakey.domain.model.OverrideType.SKIP_ALARM, overrides[0].type)
+        assertEquals(requestCode.toString(), overrides[0].value)
+        assertTrue(fakeAlarmRepository.cancelledRequestCodes.contains(requestCode))
+        assertTrue(fakeSyncUseCase.syncCalled)
+    }
 }

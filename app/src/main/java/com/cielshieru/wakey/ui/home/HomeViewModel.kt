@@ -19,6 +19,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import javax.inject.Inject
 
 private data class quadruple<A, B, C, D>(
@@ -32,11 +33,18 @@ data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
     val overrideText: String? = null,
     val isSyncing: Boolean = false,
-    val staleDataWarning: String? = null
+    val staleDataWarning: String? = null,
+    val scheduledAlarms: List<ScheduledAlarm> = emptyList()
 ) {
     companion object {
         private val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
     }
+
+    data class ScheduledAlarm(
+        val requestCode: Int,
+        val formattedTime: String,
+        val isUpcoming: Boolean
+    )
 
     fun nextAlarmFormatted(zone: ZoneId): String {
         if (nextAlarmText == "No alarms set") return nextAlarmText
@@ -88,6 +96,7 @@ class HomeViewModel @Inject constructor(
                             "Alarms snoozed $minutes min"
                         }
                         OverrideType.SKIP_TOMORROW -> "Tomorrow's alarms skipped"
+                        OverrideType.SKIP_ALARM -> "One alarm skipped"
                         OverrideType.CUSTOM_TIME -> {
                             val parts = activeOverride.value.split(":")
                             val hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
@@ -123,9 +132,43 @@ class HomeViewModel @Inject constructor(
                         }
                     }
 
+                    val scheduledAlarms = if (schedules.isNullOrEmpty()) {
+                        emptyList()
+                    } else {
+                        val zone = ZoneId.systemDefault()
+                        schedules
+                            .flatMap { schedule ->
+                                schedule.alarms.map { alarm ->
+                                    val triggerLocal = alarm.triggerAt.atZone(zone)
+                                    val dayName = triggerLocal.dayOfWeek.getDisplayName(
+                                        TextStyle.SHORT_STANDALONE,
+                                        java.util.Locale.getDefault()
+                                    )
+                                    val monthDay = triggerLocal.month.getDisplayName(
+                                        TextStyle.SHORT_STANDALONE,
+                                        java.util.Locale.getDefault()
+                                    )
+                                    val hour12 = if (triggerLocal.hour == 0) 12
+                                    else if (triggerLocal.hour > 12) triggerLocal.hour - 12
+                                    else triggerLocal.hour
+                                    val period = if (triggerLocal.hour < 12) "AM" else "PM"
+                                    val minuteStr = triggerLocal.minute.toString().padStart(2, '0')
+                                    val formattedTime = "$dayName, $monthDay ${triggerLocal.dayOfMonth} at $hour12:$minuteStr $period"
+
+                                    HomeUiState.ScheduledAlarm(
+                                        requestCode = alarm.requestCode,
+                                        formattedTime = formattedTime,
+                                        isUpcoming = alarm.triggerAt.isAfter(now)
+                                    )
+                                }
+                            }
+                            .sortedBy { it.requestCode }
+                    }
+
                     _uiState.value = HomeUiState(
                         nextAlarmText = nextAlarmText,
-                        overrideText = overrideText
+                        overrideText = overrideText,
+                        scheduledAlarms = scheduledAlarms
                     )
                 }
         }
@@ -185,6 +228,19 @@ class HomeViewModel @Inject constructor(
     fun resetOverrides() {
         viewModelScope.launch {
             alarmRepository.clearAllOverrides()
+            syncOperations.syncImmediately()
+        }
+    }
+
+    fun skipAlarm(scheduledAlarm: HomeUiState.ScheduledAlarm) {
+        viewModelScope.launch {
+            val override = ManualOverride(
+                type = OverrideType.SKIP_ALARM,
+                value = scheduledAlarm.requestCode.toString(),
+                expiresAt = Instant.now().plusSeconds(86400)
+            )
+            alarmRepository.saveOverride(override)
+            alarmRepository.cancelAlarm(scheduledAlarm.requestCode)
             syncOperations.syncImmediately()
         }
     }
