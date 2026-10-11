@@ -39,7 +39,7 @@ data class HomeUiState(
     val scheduledAlarms: List<ScheduledAlarm> = emptyList()
 ) {
     companion object {
-        private val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
+        internal val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
     }
 
     data class ScheduledAlarm(
@@ -136,13 +136,7 @@ class HomeViewModel @Inject constructor(
 
                     val bedtimeText = if (!schedules.isNullOrEmpty() && config.bedtimeEnabled) {
                         BedtimeComputer.compute(schedules, config, now)?.let { reminder ->
-                            val triggerLocal = reminder.triggerAt.atZone(ZoneId.systemDefault())
-                            val hour12 = if (triggerLocal.hour == 0) 12
-                            else if (triggerLocal.hour > 12) triggerLocal.hour - 12
-                            else triggerLocal.hour
-                            val period = if (triggerLocal.hour < 12) "AM" else "PM"
-                            val minuteStr = triggerLocal.minute.toString().padStart(2, '0')
-                            "Bedtime: $hour12:$minuteStr $period"
+                            "Bedtime: ${reminder.triggerAt.atZone(ZoneId.systemDefault()).format(HomeUiState.TIME_FORMATTER)}"
                         }
                     } else {
                         null
