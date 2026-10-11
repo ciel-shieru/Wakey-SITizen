@@ -1,6 +1,5 @@
 package com.cielshieru.wakey.ui.settings
 
-import android.Manifest.permission.READ_CALENDAR
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -190,6 +189,19 @@ fun SettingsScreen(
         }
     }
 
+    val postNotificationsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.setPermissionGranted("POST_NOTIFICATIONS", granted)
+    }
+
+    val permissionLauncherMap = remember {
+        mapOf(
+            "POST_NOTIFICATIONS" to { postNotificationsLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) },
+            "READ_CALENDAR" to { permissionLauncher.launch(android.Manifest.permission.READ_CALENDAR) }
+        )
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -365,8 +377,8 @@ fun SettingsScreen(
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
-                            OutlinedButton(onClick = { viewModel.openAppSettings(context) }) {
-                                Text("Open App Settings")
+                            Button(onClick = { postNotificationsLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) }) {
+                                Text("Grant")
                             }
                         }
                     }
@@ -431,17 +443,6 @@ fun SettingsScreen(
                 }
 
                 item {
-                    if (!uiState.onlineCalendarPicker.permissionGranted) {
-                        Button(
-                            onClick = { permissionLauncher.launch(READ_CALENDAR) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Grant Calendar Permission")
-                        }
-                    }
-                }
-
-                item {
                     if (uiState.onlineCalendarPicker.permissionGranted &&
                         uiState.onlineCalendarPicker.calendars.isEmpty() &&
                         !uiState.onlineCalendarPicker.isLoading
@@ -453,16 +454,6 @@ fun SettingsScreen(
                     }
                 }
 
-                item {
-                    if (uiState.onlineCalendarPicker.permissionDenied) {
-                        OutlinedButton(
-                            onClick = { viewModel.openAppSettings(context) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Open App Settings")
-                        }
-                    }
-                }
             }
 
             item {
@@ -590,7 +581,11 @@ fun SettingsScreen(
             }
 
             items(uiState.permissionStatus, key = { it.permission }) { entry ->
-                PermissionCard(entry) { viewModel.openAppSettings(context) }
+                PermissionCard(
+                    entry = entry,
+                    onRequestPermission = { permissionLauncherMap[entry.permission]?.invoke() },
+                    onOpenSettings = { viewModel.openAppSettings(context) }
+                )
             }
         }
 
@@ -636,6 +631,7 @@ private fun DiscoveryModeSegmentedButton(
 @Composable
 fun PermissionCard(
     entry: PermissionEntry,
+    onRequestPermission: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     val icon = when (entry.status) {
@@ -695,10 +691,10 @@ fun PermissionCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            if (entry.isRuntimePermission && (entry.status == PermissionStatus.Denied || entry.status == PermissionStatus.Required)) {
+            if (entry.isRuntimePermission && entry.status != PermissionStatus.Granted) {
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = onOpenSettings) {
-                    Text("Open App Settings")
+                Button(onClick = onRequestPermission) {
+                    Text("Grant")
                 }
             }
         }
