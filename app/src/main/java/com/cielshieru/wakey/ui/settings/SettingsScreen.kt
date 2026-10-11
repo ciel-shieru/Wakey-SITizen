@@ -413,47 +413,47 @@ fun SettingsScreen(
                         supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
                     )
                 }
-            }
 
-            if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                item {
-                    Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                }
+                if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                    item {
+                        Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                    }
 
-                item {
-                    ExposedDropdownCalendarPicker(
-                        state = uiState.onlineCalendarPicker,
-                        label = "Online Timetable Calendar",
-                        onDropdownToggle = viewModel::toggleOnlineDropdown,
-                        onSelectCalendar = viewModel::selectOnlineCalendar
-                    )
-                }
-
-                item {
-                    Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                }
-
-                item {
-                    ExposedDropdownCalendarPicker(
-                        state = uiState.campusCalendarPicker,
-                        label = "In-Campus Timetable Calendar",
-                        onDropdownToggle = viewModel::toggleCampusDropdown,
-                        onSelectCalendar = viewModel::selectCampusCalendar
-                    )
-                }
-
-                item {
-                    if (uiState.onlineCalendarPicker.permissionGranted &&
-                        uiState.onlineCalendarPicker.calendars.isEmpty() &&
-                        !uiState.onlineCalendarPicker.isLoading
-                    ) {
-                        Text(
-                            "No readable calendars found on this device",
-                            style = MaterialTheme.typography.bodyMedium
+                    item {
+                        ExposedDropdownCalendarPicker(
+                            state = uiState.onlineCalendarPicker,
+                            label = "Online Timetable Calendar",
+                            onDropdownToggle = viewModel::toggleOnlineDropdown,
+                            onSelectCalendar = viewModel::selectOnlineCalendar
                         )
                     }
-                }
 
+                    item {
+                        Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                    }
+
+                    item {
+                        ExposedDropdownCalendarPicker(
+                            state = uiState.campusCalendarPicker,
+                            label = "In-Campus Timetable Calendar",
+                            onDropdownToggle = viewModel::toggleCampusDropdown,
+                            onSelectCalendar = viewModel::selectCampusCalendar
+                        )
+                    }
+
+                    item {
+                        if (uiState.onlineCalendarPicker.permissionGranted &&
+                            uiState.onlineCalendarPicker.calendars.isEmpty() &&
+                            !uiState.onlineCalendarPicker.isLoading
+                        ) {
+                            Text(
+                                "No readable calendars found on this device",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                }
             }
 
             item {
