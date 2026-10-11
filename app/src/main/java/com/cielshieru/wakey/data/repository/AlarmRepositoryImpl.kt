@@ -61,6 +61,10 @@ class AlarmRepositoryImpl(
         return expired
     }
 
+    override suspend fun clearAllOverrides() {
+        datastore.saveOverrides(emptyList())
+    }
+
     override val debugConfig: Flow<DebugConfig> = datastore.data.debugConfigFlow()
 
     override suspend fun saveDebugConfig(config: DebugConfig) {

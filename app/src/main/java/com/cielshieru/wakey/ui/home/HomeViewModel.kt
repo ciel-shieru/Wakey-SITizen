@@ -2,8 +2,6 @@ package com.cielshieru.wakey.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
@@ -11,6 +9,8 @@ import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.model.OverrideType
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.Clock
+import com.cielshieru.wakey.domain.port.SyncStatus
+import com.cielshieru.wakey.usecase.SyncOperations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -58,8 +58,9 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
-    private val workManager: WorkManager,
-    private val clock: Clock
+    private val syncStatus: SyncStatus,
+    private val clock: Clock,
+    private val syncOperations: SyncOperations
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -130,13 +131,7 @@ class HomeViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            workManager.getWorkInfosByTagFlow("sync_work")
-                .map { workInfos ->
-                    workInfos.any {
-                        it.state == WorkInfo.State.RUNNING ||
-                                it.state == WorkInfo.State.BLOCKED
-                    }
-                }
+            syncStatus.isSyncing
                 .collect { syncing ->
                     _uiState.value = _uiState.value.copy(isSyncing = syncing)
                 }
@@ -184,6 +179,13 @@ class HomeViewModel @Inject constructor(
                 expiresAt = Instant.now().plusSeconds(86400)
             )
             alarmRepository.saveOverride(override)
+        }
+    }
+
+    fun resetOverrides() {
+        viewModelScope.launch {
+            alarmRepository.clearAllOverrides()
+            syncOperations.syncImmediately()
         }
     }
 }

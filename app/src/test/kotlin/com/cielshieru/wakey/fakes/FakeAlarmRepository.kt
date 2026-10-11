@@ -22,6 +22,12 @@ class FakeAlarmRepository : AlarmRepository {
     private val _lastSyncTime = MutableStateFlow<Long?>(null)
     override val lastSyncTime: Flow<Long?> = _lastSyncTime
 
+    var lastSyncTimeMillis: Long?
+        get() = _lastSyncTime.value
+        set(value) {
+            _lastSyncTime.value = value
+        }
+
     private val _debugConfig = MutableStateFlow(DebugConfig())
     override val debugConfig: Flow<DebugConfig> = _debugConfig.asStateFlow()
 
@@ -53,6 +59,13 @@ class FakeAlarmRepository : AlarmRepository {
             _overrides.value = current.filter { it.expiresAt > now }
         }
         return expired
+    }
+
+    var clearedAllOverrides = false
+
+    override suspend fun clearAllOverrides() {
+        clearedAllOverrides = true
+        _overrides.value = emptyList()
     }
 
     override suspend fun saveDebugConfig(config: DebugConfig) {

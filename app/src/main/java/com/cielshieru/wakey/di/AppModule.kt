@@ -12,6 +12,7 @@ import com.cielshieru.wakey.data.calendar.SystemCalendarSource
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
+import com.cielshieru.wakey.data.repository.WorkManagerSyncStatus
 import com.cielshieru.wakey.domain.port.RemoteServerProvider
 import com.cielshieru.wakey.domain.port.*
 import com.cielshieru.wakey.usecase.SyncOperations
@@ -103,6 +104,11 @@ object AppModule {
     @Singleton
     fun provideWorkManager(@ApplicationContext context: Context): WorkManager =
         WorkManager.getInstance(context)
+
+    @Provides
+    @Singleton
+    fun provideSyncStatus(workManager: WorkManager): SyncStatus =
+        WorkManagerSyncStatus(workManager)
 
     @Provides
     @Singleton

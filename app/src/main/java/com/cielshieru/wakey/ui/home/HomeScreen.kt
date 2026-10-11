@@ -148,6 +148,18 @@ fun HomeScreen(
                 Text("Skip Tomorrow")
             }
 
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = viewModel::resetOverrides,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Cancel, "Reset skip and custom time")
+                Spacer(Modifier.width(8.dp))
+                Text("Reset Skip & Custom Time")
+            }
+
             if (showTimePicker) {
                 val timePickerState = rememberTimePickerState()
                 ModalBottomSheet(
