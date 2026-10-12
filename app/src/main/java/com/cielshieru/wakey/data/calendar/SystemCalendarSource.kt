@@ -38,7 +38,7 @@ suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withCo
     val uri = CalendarContract.Calendars.CONTENT_URI
     val projection = arrayOf(
         CalendarContract.Calendars._ID,
-        "display_name",
+        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
         CalendarContract.Calendars.ACCOUNT_NAME,
         CalendarContract.Calendars.ACCOUNT_TYPE
     )

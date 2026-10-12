@@ -312,6 +312,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun resetOnlineCalendarLoading() {
+        _uiState.update {
+            it.copy(
+                onlineCalendarPicker = it.onlineCalendarPicker.copy(isLoading = false)
+            )
+        }
+    }
+
     fun loadCampusCalendars(calendars: List<CalendarEntry>) {
         _uiState.update {
             it.copy(
@@ -319,6 +327,14 @@ class SettingsViewModel @Inject constructor(
                     calendars = calendars,
                     isLoading = false
                 )
+            )
+        }
+    }
+
+    fun resetCampusCalendarLoading() {
+        _uiState.update {
+            it.copy(
+                campusCalendarPicker = it.campusCalendarPicker.copy(isLoading = false)
             )
         }
     }
@@ -437,6 +453,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun resetExternalEventCalendarLoading() {
+        _uiState.update {
+            it.copy(
+                externalEventCalendarPicker = it.externalEventCalendarPicker.copy(isLoading = false)
+            )
+        }
+    }
+
     fun saveConfig() {
         viewModelScope.launch {
             val state = _uiState.value
@@ -483,9 +507,18 @@ class SettingsViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     permissionStatus = entries,
-                    onlineCalendarPicker = it.onlineCalendarPicker.copy(permissionGranted = calendarGranted),
-                    campusCalendarPicker = it.campusCalendarPicker.copy(permissionGranted = calendarGranted),
-                    externalEventCalendarPicker = it.externalEventCalendarPicker.copy(permissionGranted = calendarGranted)
+                    onlineCalendarPicker = it.onlineCalendarPicker.copy(
+                        permissionGranted = calendarGranted,
+                        isLoading = false
+                    ),
+                    campusCalendarPicker = it.campusCalendarPicker.copy(
+                        permissionGranted = calendarGranted,
+                        isLoading = false
+                    ),
+                    externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
+                        permissionGranted = calendarGranted,
+                        isLoading = false
+                    )
                 )
             }
         }

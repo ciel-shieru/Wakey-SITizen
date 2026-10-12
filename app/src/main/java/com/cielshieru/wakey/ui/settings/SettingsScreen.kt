@@ -260,8 +260,12 @@ fun SettingsScreen(
             uiState.onlineCalendarPicker.calendars.isEmpty() &&
             !uiState.onlineCalendarPicker.isLoading
         ) {
-            val calendars = getReadableCalendars(context)
-            viewModel.loadOnlineCalendars(calendars)
+            try {
+                val calendars = getReadableCalendars(context)
+                viewModel.loadOnlineCalendars(calendars)
+            } catch (e: Exception) {
+                viewModel.resetOnlineCalendarLoading()
+            }
         }
     }
 
@@ -271,8 +275,12 @@ fun SettingsScreen(
             uiState.campusCalendarPicker.calendars.isEmpty() &&
             !uiState.campusCalendarPicker.isLoading
         ) {
-            val calendars = getReadableCalendars(context)
-            viewModel.loadCampusCalendars(calendars)
+            try {
+                val calendars = getReadableCalendars(context)
+                viewModel.loadCampusCalendars(calendars)
+            } catch (e: Exception) {
+                viewModel.resetCampusCalendarLoading()
+            }
         }
     }
 
@@ -283,8 +291,12 @@ fun SettingsScreen(
             uiState.externalEventCalendarPicker.calendars.isEmpty() &&
             !uiState.externalEventCalendarPicker.isLoading
         ) {
-            val calendars = getReadableCalendars(context)
-            viewModel.loadExternalEventCalendars(calendars)
+            try {
+                val calendars = getReadableCalendars(context)
+                viewModel.loadExternalEventCalendars(calendars)
+            } catch (e: Exception) {
+                viewModel.resetExternalEventCalendarLoading()
+            }
         }
     }
 
