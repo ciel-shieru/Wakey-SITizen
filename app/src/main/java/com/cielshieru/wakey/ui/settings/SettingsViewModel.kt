@@ -479,7 +479,15 @@ class SettingsViewModel @Inject constructor(
     fun refreshPermissionState(context: Context) {
         viewModelScope.launch {
             val entries = permissionChecker.getAllPermissionEntries(context)
-            _uiState.update { it.copy(permissionStatus = entries) }
+            val calendarGranted = permissionChecker.checkCalendarPermission(context)
+            _uiState.update {
+                it.copy(
+                    permissionStatus = entries,
+                    onlineCalendarPicker = it.onlineCalendarPicker.copy(permissionGranted = calendarGranted),
+                    campusCalendarPicker = it.campusCalendarPicker.copy(permissionGranted = calendarGranted),
+                    externalEventCalendarPicker = it.externalEventCalendarPicker.copy(permissionGranted = calendarGranted)
+                )
+            }
         }
     }
 
