@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import java.time.Instant
 import java.time.LocalDate
@@ -21,7 +22,10 @@ import java.time.LocalDate
  *   pending alarm for the day before setting the freshly computed set, so no stale
  *   alarms accumulate across syncs.
  */
-class AlarmService(private val context: Context) {
+class AlarmService(
+    private val context: Context,
+    private val debugLogger: DebugLogger
+) {
 
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
@@ -68,6 +72,8 @@ class AlarmService(private val context: Context) {
             alarm.triggerAt.toEpochMilli(),
             pendingIntent
         )
+
+        debugLogger.logAlarmSet(day, alarm, null)
     }
 
     /**
@@ -97,6 +103,8 @@ class AlarmService(private val context: Context) {
             triggerAtMillis,
             pendingIntent
         )
+
+        debugLogger.logBedtimeReminderSet(triggerAtMillis)
     }
 
     /**
@@ -130,6 +138,8 @@ class AlarmService(private val context: Context) {
         val now = Instant.now()
         alarms.filter { it.triggerAt.isAfter(now) }
             .forEach { alarm -> setAlarm(alarm, day) }
+        val activeCount = alarms.count { it.triggerAt.isAfter(now) }
+        debugLogger.logAlarmClearAndSet(day, alarms.size, activeCount)
     }
 
     /**

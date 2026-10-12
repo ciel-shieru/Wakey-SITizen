@@ -3,6 +3,7 @@ package com.cielshieru.wakey.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.domain.BedtimeComputer
+import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
@@ -70,7 +71,8 @@ class HomeViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val syncStatus: SyncStatus,
     private val clock: Clock,
-    private val syncOperations: SyncOperations
+    private val syncOperations: SyncOperations,
+    private val debugLogger: DebugLogger
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -89,6 +91,11 @@ class HomeViewModel @Inject constructor(
                     quadruple(triple.first, triple.second, triple.third, debugConfig)
                 }
                 .collect { (schedules, overrides, config, debugConfig) ->
+                    // Log full config when UI becomes visible (foreground app open)
+                    if (debugConfig.debugModeEnabled) {
+                        debugLogger.logFullConfig(config, debugConfig)
+                    }
+
                     val activeOverride = overrides.filter { it.expiresAt > Instant.now() }
                         .maxByOrNull { it.expiresAt.toEpochMilli() }
 

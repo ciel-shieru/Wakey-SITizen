@@ -1,5 +1,6 @@
 package com.cielshieru.wakey.ui.home
 
+import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.OverrideType
 import com.cielshieru.wakey.domain.port.SyncStatus
@@ -53,7 +54,8 @@ class HomeViewModelTest {
             alarmRepository = fakeAlarmRepository,
             syncStatus = fakeSyncStatus,
             clock = fakeClock,
-            syncOperations = fakeSyncUseCase
+            syncOperations = fakeSyncUseCase,
+            debugLogger = DebugLogger(null, false)
         )
     }
 

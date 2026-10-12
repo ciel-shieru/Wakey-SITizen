@@ -23,6 +23,7 @@ import com.cielshieru.wakey.data.store.TimetableStore.timetableFlow
 import com.cielshieru.wakey.domain.AdjustForExternalEvents
 import com.cielshieru.wakey.domain.AlarmComputer
 import com.cielshieru.wakey.domain.BedtimeComputer
+import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.OverrideResolver
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
@@ -73,7 +74,8 @@ class SyncWorker @AssistedInject constructor(
     private val calendarEventSource: CalendarEventSource,
     private val dataStore: DataStore<Preferences>,
     private val clock: Clock,
-    private val zoneProvider: ZoneProvider
+    private val zoneProvider: ZoneProvider,
+    private val debugLogger: DebugLogger
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -89,13 +91,21 @@ class SyncWorker @AssistedInject constructor(
             }
             if (debugConfig.debugModeEnabled) {
                 Log.d(DEBUG_TAG, "Debug mode active, targetDate=$targetDateLocal")
+                debugLogger.logDiscoveryMode(config)
             }
 
             // Step 1: fetch timetable (stale-while-revalidate on failure).
             val events = fetchTimetable(config, now, zone)
 
             if (debugConfig.debugModeEnabled) {
-                Log.d(DEBUG_TAG, "Fetch complete: ${events.size} event(s) from server")
+                val source = when (config.discoveryMode) {
+                    DiscoveryMode.RemoteServer -> "RemoteServer"
+                    DiscoveryMode.DeviceCalendar -> "DeviceCalendar"
+                }
+                Log.d(DEBUG_TAG, "Fetch complete: ${events.size} event(s) from $source")
+                events.forEach { event ->
+                    debugLogger.logEvent(event, source)
+                }
             }
 
             // Step 2: parse and filter — drop BrightSpace/x-site events.
@@ -103,8 +113,9 @@ class SyncWorker @AssistedInject constructor(
                 it.courseCode.startsWith(BRIGHTSPACE_PREFIX, ignoreCase = true)
             }
 
-            if (debugConfig.debugModeEnabled) {
-                Log.d(DEBUG_TAG, "After filtering: ${filteredEvents.size} non-BrightSpace event(s)")
+            if (debugConfig.debugModeEnabled && filteredEvents.size != events.size) {
+                Log.d(DEBUG_TAG, "After filtering: ${filteredEvents.size} non-BrightSpace event(s) " +
+                    "(${events.size - filteredEvents.size} dropped)")
             }
 
             // Step 3: compute alarm schedule (ADR-0003).
@@ -113,6 +124,29 @@ class SyncWorker @AssistedInject constructor(
 
             if (debugConfig.debugModeEnabled) {
                 Log.d(DEBUG_TAG, "AlarmComputer produced ${schedules.size} schedule(s)")
+                schedules.forEach { schedule ->
+                    val dayEvents = filteredEvents.filter {
+                        it.dtstart.toLocalDate() == schedule.day
+                    }
+                    val firstEvt = dayEvents.minByOrNull { it.dtstart }
+                    val offsetMinutes = when (firstEvt?.eventType) {
+                        EventKind.ONLINE -> config.onlineOffsetMinutes
+                        EventKind.CAMPUS -> config.campusOffsetMinutes
+                        else -> 0
+                    }
+                    val dummyEvent = firstEvt ?: TimetableEvent(
+                        courseCode = "?", title = "?", summary = "",
+                        dtstart = java.time.LocalDateTime.now(),
+                        dtend = java.time.LocalDateTime.now(),
+                        location = "", eventType = EventKind.CAMPUS
+                    )
+                    debugLogger.logAlarmCalculation(
+                        schedule.day, dummyEvent,
+                        offsetMinutes, schedule.firstAlarmTime!!,
+                        config.repeatIntervalMinutes, config.maxRepeats
+                    )
+                    debugLogger.logRepeatGeneration(schedule.alarms.size, config.repeatIntervalMinutes, config.maxRepeats)
+                }
             }
 
             // Step 4: adjust for external events (ADR-0005), when enabled.
@@ -131,11 +165,18 @@ class SyncWorker @AssistedInject constructor(
                 schedules
             }
 
+            if (debugConfig.debugModeEnabled && config.externalEventEnabled) {
+                Log.d(DEBUG_TAG, "External events adjustment applied: ${adjustedSchedules.size} schedule(s)")
+            }
+
             // Step 5: apply manual overrides (ADR-0006); clear expired ones.
             val overrides = dataStore.data.overridesFlow().first()
             val activeOverrides = OverrideResolver.clearExpired(overrides, now)
             if (activeOverrides.size != overrides.size) {
                 dataStore.saveOverrides(activeOverrides)
+            }
+            if (debugConfig.debugModeEnabled) {
+                Log.d(DEBUG_TAG, "Overrides: ${activeOverrides.size} active, ${overrides.size - activeOverrides.size} expired")
             }
             val finalSchedules =
                 OverrideResolver.resolve(activeOverrides, now, zone)?.let { resolved ->
@@ -152,16 +193,55 @@ class SyncWorker @AssistedInject constructor(
                     .map { it.day }
                     .toSet()
             val currentDays = finalSchedules.map { it.day }.toSet()
-            (previousDays - currentDays).forEach { day ->
-                alarmService.cancelAlarmsForDay(day)
+            if (debugConfig.debugModeEnabled) {
+                (previousDays - currentDays).forEach { day ->
+                    debugLogger.logAlarmCancelled(day)
+                }
             }
             finalSchedules.forEach { schedule ->
                 alarmService.clearAndSetAlarms(schedule.day, schedule.alarms)
+                if (debugConfig.debugModeEnabled) {
+                    schedule.alarms.forEach { alarm ->
+                        val evtTitle = filteredEvents
+                            .filter { it.dtstart.toLocalDate() == schedule.day }
+                            .minByOrNull { it.dtstart }
+                            ?.title
+                        debugLogger.logAlarmSet(schedule.day, alarm, evtTitle)
+                    }
+                }
             }
 
             // Step 7: compute and set the bedtime reminder (ADR-0004).
             val targetDateInstant = targetDateLocal?.atStartOfDay(zone)?.toInstant() ?: now
+
+            if (debugConfig.debugModeEnabled && config.bedtimeEnabled) {
+                val firstAlarmTime = finalSchedules
+                    .mapNotNull { it.firstAlarmTime }
+                    .minOrNull()
+
+                if (firstAlarmTime != null) {
+                    val sleepDurationMinutes = config.targetSleepDurationHours.toLong() * 60L
+                    val targetBedtime = firstAlarmTime.minus(sleepDurationMinutes, java.time.temporal.ChronoUnit.MINUTES)
+                    val reminderTime = targetBedtime.minus(config.bedtimeReminderOffsetMinutes.toLong(), java.time.temporal.ChronoUnit.MINUTES)
+
+                    debugLogger.logBedtimeCalculation(
+                        firstAlarmTime,
+                        config.targetSleepDurationHours,
+                        targetBedtime,
+                        config.bedtimeReminderOffsetMinutes,
+                        reminderTime
+                    )
+                }
+            }
+
             val bedtime = BedtimeComputer.compute(finalSchedules, config, if (debugConfig.debugModeEnabled) targetDateInstant else now)
+            if (debugConfig.debugModeEnabled) {
+                if (bedtime != null) {
+                    debugLogger.logBedtimeSet(bedtime)
+                } else {
+                    debugLogger.logBedtimeSkipped("null result or already passed")
+                }
+            }
             if (bedtime != null) {
                 alarmService.setBedtimeReminder(bedtime.triggerAt.toEpochMilli())
             } else {

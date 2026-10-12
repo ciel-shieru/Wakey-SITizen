@@ -13,6 +13,9 @@ import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
 import com.cielshieru.wakey.data.repository.WorkManagerSyncStatus
+import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
+import com.cielshieru.wakey.domain.DebugLogger
+import com.cielshieru.wakey.domain.port.DebugConfigProvider
 import com.cielshieru.wakey.domain.port.RemoteServerProvider
 import com.cielshieru.wakey.domain.port.*
 import com.cielshieru.wakey.usecase.SyncOperations
@@ -26,6 +29,7 @@ import com.cielshieru.wakey.domain.model.AlarmConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -73,14 +77,34 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAlarmService(@ApplicationContext context: Context): AlarmService =
-        AlarmService(context)
+    fun provideDebugConfigProvider(
+        datastore: DataStore<Preferences>
+    ): DebugConfigProvider = object : DebugConfigProvider {
+        override val debugModeEnabled: Boolean
+            get() = runBlocking {
+                datastore.data.debugConfigFlow().first()
+            }.debugModeEnabled
+    }
+
+    @Provides
+    @Singleton
+    fun provideAlarmService(
+        @ApplicationContext context: Context,
+        debugLogger: DebugLogger
+    ): AlarmService = AlarmService(context, debugLogger)
 
     @Provides
     @Singleton
     fun provideCalendarEventSource(
         @ApplicationContext context: Context
     ): CalendarEventSource = SystemCalendarSource(context.contentResolver)
+
+    @Provides
+    @Singleton
+    fun provideDebugLogger(
+        @ApplicationContext context: Context,
+        debugConfigProvider: DebugConfigProvider
+    ): DebugLogger = DebugLogger(context, debugConfigProvider.debugModeEnabled)
 
     @Provides
     @Singleton
