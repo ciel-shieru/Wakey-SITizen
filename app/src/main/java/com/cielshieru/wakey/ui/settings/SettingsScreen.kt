@@ -132,6 +132,109 @@ private fun ExposedDropdownCalendarPicker(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+private fun MultiSelectCalendarPicker(
+    state: MultiSelectCalendarPickerUiState,
+    label: String,
+    onDropdownToggle: () -> Unit,
+    onCalendarToggle: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(state.showDropdown) }
+
+    LaunchedEffect(state.showDropdown) {
+        if (state.showDropdown && !expanded) {
+            expanded = true
+        }
+    }
+
+    LaunchedEffect(expanded) {
+        if (!expanded) {
+            onDropdownToggle()
+        }
+    }
+
+    val selectedDisplayText = when {
+        state.selectedIds.isEmpty() -> "Select calendars"
+        state.selectedIds.size <= 2 -> {
+            state.calendars
+                .filter { it.id in state.selectedIds }
+                .joinToString(", ") { it.displayName }
+        }
+        else -> {
+            val count = state.selectedIds.size
+            "$count calendars selected"
+        }
+    }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { newExpanded ->
+            if (newExpanded && !expanded) {
+                onDropdownToggle()
+            } else if (!newExpanded && expanded) {
+                expanded = false
+            }
+        },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = selectedDisplayText,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            enabled = state.permissionGranted,
+            supportingText = {
+                if (state.permissionDenied) {
+                    Text("Permission denied — grant in app settings")
+                } else if (!state.permissionGranted) {
+                    Text("Permission required")
+                } else if (state.isLoading) {
+                    Text("Loading calendars...")
+                }
+            }
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded && state.permissionGranted && !state.isLoading,
+            onDismissRequest = { expanded = false }
+        ) {
+            if (state.calendars.isEmpty()) {
+                DropdownMenuItem(
+                    text = { Text("No calendars available") },
+                    onClick = { expanded = false }
+                )
+            } else {
+                state.calendars.forEach { calendar ->
+                    val isSelected = calendar.id in state.selectedIds
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Checkbox(
+                                    checked = isSelected,
+                                    onCheckedChange = { onCalendarToggle(calendar.id) }
+                                )
+                                Text(calendar.displayName)
+                            }
+                        },
+                        onClick = {
+                            onCalendarToggle(calendar.id)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onShowSnackbar: (String) -> Unit,
@@ -151,9 +254,8 @@ fun SettingsScreen(
         .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
         ?.status == PermissionStatus.Granted
 
-    LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
+    LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode) {
         if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
-            uiState.externalEnabled &&
             uiState.onlineCalendarPicker.permissionGranted &&
             uiState.onlineCalendarPicker.calendars.isEmpty() &&
             !uiState.onlineCalendarPicker.isLoading
@@ -163,15 +265,26 @@ fun SettingsScreen(
         }
     }
 
-    LaunchedEffect(uiState.campusCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
+    LaunchedEffect(uiState.campusCalendarPicker.permissionGranted, uiState.discoveryMode) {
         if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
-            uiState.externalEnabled &&
             uiState.campusCalendarPicker.permissionGranted &&
             uiState.campusCalendarPicker.calendars.isEmpty() &&
             !uiState.campusCalendarPicker.isLoading
         ) {
             val calendars = getReadableCalendars(context)
             viewModel.loadCampusCalendars(calendars)
+        }
+    }
+
+    LaunchedEffect(uiState.externalEventCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
+        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
+            uiState.externalEnabled &&
+            uiState.externalEventCalendarPicker.permissionGranted &&
+            uiState.externalEventCalendarPicker.calendars.isEmpty() &&
+            !uiState.externalEventCalendarPicker.isLoading
+        ) {
+            val calendars = getReadableCalendars(context)
+            viewModel.loadExternalEventCalendars(calendars)
         }
     }
 
@@ -215,8 +328,7 @@ fun SettingsScreen(
                 actions = {
                     TextButton(onClick = {
                         if (uiState.externalEnabled &&
-                            uiState.onlineCalendarPicker.selectedId.isNullOrBlank() &&
-                            uiState.campusCalendarPicker.selectedId.isNullOrBlank()
+                            uiState.externalCalendarIds.isEmpty()
                         ) {
                             onShowSnackbar("Select at least one calendar for external events")
                             return@TextButton
@@ -285,6 +397,46 @@ fun SettingsScreen(
                             Text("URL of your SIT-ICS-Go server running wakey-sitizen plugin")
                         }
                     )
+                }
+            }
+
+            if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
+                item {
+                    Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                }
+
+                item {
+                    ExposedDropdownCalendarPicker(
+                        state = uiState.onlineCalendarPicker,
+                        label = "Online Timetable Calendar",
+                        onDropdownToggle = viewModel::toggleOnlineDropdown,
+                        onSelectCalendar = viewModel::selectOnlineCalendar
+                    )
+                }
+
+                item {
+                    Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
+                }
+
+                item {
+                    ExposedDropdownCalendarPicker(
+                        state = uiState.campusCalendarPicker,
+                        label = "In-Campus Timetable Calendar",
+                        onDropdownToggle = viewModel::toggleCampusDropdown,
+                        onSelectCalendar = viewModel::selectCampusCalendar
+                    )
+                }
+
+                item {
+                    if (uiState.onlineCalendarPicker.permissionGranted &&
+                        uiState.onlineCalendarPicker.calendars.isEmpty() &&
+                        !uiState.onlineCalendarPicker.isLoading
+                    ) {
+                        Text(
+                            "No readable calendars found on this device",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
 
@@ -416,35 +568,18 @@ fun SettingsScreen(
 
                 if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
                     item {
-                        Text("Online Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                    }
-
-                    item {
-                        ExposedDropdownCalendarPicker(
-                            state = uiState.onlineCalendarPicker,
-                            label = "Online Timetable Calendar",
-                            onDropdownToggle = viewModel::toggleOnlineDropdown,
-                            onSelectCalendar = viewModel::selectOnlineCalendar
+                        MultiSelectCalendarPicker(
+                            state = uiState.externalEventCalendarPicker,
+                            onDropdownToggle = viewModel::toggleExternalEventCalendarDropdown,
+                            onCalendarToggle = viewModel::toggleExternalEventCalendar,
+                            label = "External Event Calendars"
                         )
                     }
 
                     item {
-                        Text("In-Campus Timetable Calendar", style = MaterialTheme.typography.titleMedium)
-                    }
-
-                    item {
-                        ExposedDropdownCalendarPicker(
-                            state = uiState.campusCalendarPicker,
-                            label = "In-Campus Timetable Calendar",
-                            onDropdownToggle = viewModel::toggleCampusDropdown,
-                            onSelectCalendar = viewModel::selectCampusCalendar
-                        )
-                    }
-
-                    item {
-                        if (uiState.onlineCalendarPicker.permissionGranted &&
-                            uiState.onlineCalendarPicker.calendars.isEmpty() &&
-                            !uiState.onlineCalendarPicker.isLoading
+                        if (uiState.externalEventCalendarPicker.permissionGranted &&
+                            uiState.externalEventCalendarPicker.calendars.isEmpty() &&
+                            !uiState.externalEventCalendarPicker.isLoading
                         ) {
                             Text(
                                 "No readable calendars found on this device",
@@ -454,10 +589,6 @@ fun SettingsScreen(
                     }
 
                 }
-            }
-
-            item {
-                Text("Permissions", style = MaterialTheme.typography.titleLarge)
             }
 
             item {

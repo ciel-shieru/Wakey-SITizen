@@ -41,11 +41,13 @@ data class SettingsUiState(
     val bedtimeOffset: Int = 30,
     val externalBuffer: Int = 30,
     val externalEnabled: Boolean = false,
+    val externalCalendarIds: List<String> = emptyList(),
     val bedtimeEnabled: Boolean = false,
     val remoteServerUrl: String = "",
     val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
     val onlineCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
     val campusCalendarPicker: CalendarDropdownUiState = CalendarDropdownUiState(),
+    val externalEventCalendarPicker: MultiSelectCalendarPickerUiState = MultiSelectCalendarPickerUiState(),
     val permissionStatus: List<PermissionEntry> = emptyList(),
     val debugModeEnabled: Boolean = false,
     val targetDateMillis: Long? = null
@@ -54,6 +56,15 @@ data class SettingsUiState(
 data class CalendarDropdownUiState(
     val calendars: List<CalendarEntry> = emptyList(),
     val selectedId: String? = null,
+    val isLoading: Boolean = false,
+    val permissionGranted: Boolean = false,
+    val permissionDenied: Boolean = false,
+    val showDropdown: Boolean = false
+)
+
+data class MultiSelectCalendarPickerUiState(
+    val calendars: List<CalendarEntry> = emptyList(),
+    val selectedIds: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
     val permissionDenied: Boolean = false,
@@ -106,11 +117,15 @@ class SettingsViewModel @Inject constructor(
                     bedtimeOffset = config.bedtimeReminderOffsetMinutes,
                     externalBuffer = config.externalEventBufferMinutes,
                     externalEnabled = config.externalEventEnabled,
+                    externalCalendarIds = config.externalEventCalendarIds,
                     bedtimeEnabled = config.bedtimeEnabled,
                     remoteServerUrl = config.remoteServerUrl,
                     discoveryMode = config.discoveryMode,
                     onlineCalendarPicker = _uiState.value.onlineCalendarPicker.copy(selectedId = onlineId),
                     campusCalendarPicker = _uiState.value.campusCalendarPicker.copy(selectedId = campusId),
+                    externalEventCalendarPicker = _uiState.value.externalEventCalendarPicker.copy(
+                        selectedIds = config.externalEventCalendarIds
+                    ),
                     debugModeEnabled = debug.debugModeEnabled,
                     targetDateMillis = debug.targetDateMillis
                 )
@@ -161,6 +176,10 @@ class SettingsViewModel @Inject constructor(
                         permissionGranted = false
                     ),
                     campusCalendarPicker = it.campusCalendarPicker.copy(
+                        isLoading = false,
+                        permissionGranted = false
+                    ),
+                    externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
                         isLoading = false,
                         permissionGranted = false
                     )
@@ -215,6 +234,13 @@ class SettingsViewModel @Inject constructor(
                     )
                 } else {
                     it.campusCalendarPicker
+                },
+                externalEventCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
+                    it.externalEventCalendarPicker.copy(
+                        permissionGranted = false
+                    )
+                } else {
+                    it.externalEventCalendarPicker
                 }
             )
         }
@@ -258,9 +284,18 @@ class SettingsViewModel @Inject constructor(
                     entry
                 }
             }
+            val updatedExternalPicker = if (permissionName == "READ_CALENDAR") {
+                it.externalEventCalendarPicker.copy(
+                    permissionGranted = granted,
+                    permissionDenied = !granted
+                )
+            } else {
+                it.externalEventCalendarPicker
+            }
             it.copy(
                 onlineCalendarPicker = updatedOnlinePicker,
                 campusCalendarPicker = updatedCampusPicker,
+                externalEventCalendarPicker = updatedExternalPicker,
                 permissionStatus = updatedPermissionStatus
             )
         }
@@ -350,6 +385,58 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun toggleExternalEventCalendarDropdown() {
+        _uiState.update { state ->
+            val picker = state.externalEventCalendarPicker
+            if (picker.permissionGranted && !picker.isLoading) {
+                state.copy(
+                    externalEventCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
+                )
+            } else {
+                viewModelScope.launch {
+                    _uiState.update {
+                        it.copy(
+                            externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
+                                isLoading = true,
+                                showDropdown = false
+                            )
+                        )
+                    }
+                }
+                state
+            }
+        }
+    }
+
+    fun toggleExternalEventCalendar(calendarId: String) {
+        _uiState.update { state ->
+            val currentIds = state.externalCalendarIds.toMutableSet()
+            if (calendarId in currentIds) {
+                currentIds.remove(calendarId)
+            } else {
+                currentIds.add(calendarId)
+            }
+            state.copy(
+                externalCalendarIds = currentIds.toList(),
+                externalEventCalendarPicker = state.externalEventCalendarPicker.copy(
+                    selectedIds = currentIds.toList()
+                )
+            )
+        }
+    }
+
+    fun loadExternalEventCalendars(calendars: List<CalendarEntry>) {
+        _uiState.update {
+            it.copy(
+                externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
+                    calendars = calendars,
+                    isLoading = false,
+                    permissionGranted = true
+                )
+            )
+        }
+    }
+
     fun saveConfig() {
         viewModelScope.launch {
             val state = _uiState.value
@@ -367,6 +454,7 @@ class SettingsViewModel @Inject constructor(
                 bedtimeReminderOffsetMinutes = state.bedtimeOffset,
                 externalEventBufferMinutes = state.externalBuffer,
                 externalEventEnabled = state.externalEnabled,
+                externalEventCalendarIds = state.externalCalendarIds,
                 selectedCalendarIds = selectedCalendarIds,
                 bedtimeEnabled = state.bedtimeEnabled,
                 remoteServerUrl = state.remoteServerUrl,

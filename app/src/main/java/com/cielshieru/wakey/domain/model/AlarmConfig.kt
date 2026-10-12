@@ -14,6 +14,7 @@ data class AlarmConfig(
     val bedtimeReminderOffsetMinutes: Int = DEFAULT_BEDTIME_OFFSET,
     val externalEventBufferMinutes: Int = DEFAULT_BUFFER_MINUTES,
     val externalEventEnabled: Boolean = false,
+    val externalEventCalendarIds: List<String> = emptyList(),
     val selectedCalendarIds: List<String> = emptyList(),
     val bedtimeEnabled: Boolean = false,
     val remoteServerUrl: String = DEFAULT_REMOTE_SERVER_URL,

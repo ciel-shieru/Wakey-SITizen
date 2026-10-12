@@ -25,6 +25,7 @@ object AlarmConfigStore {
     private val REMOTE_SERVER_URL = stringPreferencesKey("remote_server_url")
     private val DISCOVERY_MODE = stringPreferencesKey("discovery_mode")
     private val SELECTED_CALENDAR_IDS = stringPreferencesKey("selected_calendar_ids")
+    private val EXTERNAL_EVENT_CALENDAR_IDS = stringPreferencesKey("external_event_calendar_ids")
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
         AlarmConfig(
@@ -36,6 +37,8 @@ object AlarmConfigStore {
             bedtimeReminderOffsetMinutes = prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET,
             externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES,
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
+            externalEventCalendarIds = prefs[EXTERNAL_EVENT_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
+                ?: emptyList(),
             selectedCalendarIds = prefs[SELECTED_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
                 ?: emptyList(),
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
@@ -61,6 +64,7 @@ object AlarmConfigStore {
             prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
             prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
+            prefs[EXTERNAL_EVENT_CALENDAR_IDS] = config.externalEventCalendarIds.joinToString(",")
             prefs[SELECTED_CALENDAR_IDS] = config.selectedCalendarIds.joinToString(",")
             prefs[BEDTIME_ENABLED] = config.bedtimeEnabled
             prefs[REMOTE_SERVER_URL] = config.remoteServerUrl
