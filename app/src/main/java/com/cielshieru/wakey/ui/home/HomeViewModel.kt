@@ -9,9 +9,12 @@ import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.model.OverrideType
+import com.cielshieru.wakey.domain.model.TimetableEvent
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.Clock
 import com.cielshieru.wakey.domain.port.SyncStatus
+import com.cielshieru.wakey.domain.port.TimetableRepository
+import com.cielshieru.wakey.domain.port.ZoneProvider
 import com.cielshieru.wakey.usecase.SyncOperations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -34,6 +37,7 @@ private data class quadruple<A, B, C, D>(
 data class HomeUiState(
     val nextAlarmText: String = "No alarms set",
     val bedtimeText: String? = null,
+    val nextEvent: NextEventUiState? = null,
     val overrideText: String? = null,
     val isSyncing: Boolean = false,
     val staleDataWarning: String? = null,
@@ -47,6 +51,13 @@ data class HomeUiState(
         val requestCode: Int,
         val formattedTime: String,
         val isUpcoming: Boolean
+    )
+
+    data class NextEventUiState(
+        val courseCode: String,
+        val title: String,
+        val dtstartFormatted: String,
+        val location: String
     )
 
     fun nextAlarmFormatted(zone: ZoneId): String {
@@ -72,11 +83,42 @@ class HomeViewModel @Inject constructor(
     private val syncStatus: SyncStatus,
     private val clock: Clock,
     private val syncOperations: SyncOperations,
-    private val debugLogger: DebugLogger
+    private val debugLogger: DebugLogger,
+    private val timetableRepository: TimetableRepository,
+    private val zoneProvider: ZoneProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private fun computeNextEvent(
+        events: List<TimetableEvent>,
+        now: Instant,
+        zone: ZoneId,
+        today: LocalDate,
+        tomorrow: LocalDate
+    ): HomeUiState.NextEventUiState? {
+        val nowLocal = now.atZone(zone).toLocalDateTime()
+        val todayEvents = events.filter { it.dtstart.toLocalDate() == today }
+        val tomorrowEvents = events.filter { it.dtstart.toLocalDate() == tomorrow }
+        val todayFirstEvent = todayEvents.minByOrNull { it.dtstart }
+        val tomorrowFirstEvent = tomorrowEvents.minByOrNull { it.dtstart }
+
+        val selectedEvent: TimetableEvent? = if (todayFirstEvent != null && todayFirstEvent.dtstart.isAfter(nowLocal)) {
+            todayFirstEvent
+        } else {
+            tomorrowFirstEvent
+        }
+
+        return selectedEvent?.let { event ->
+            HomeUiState.NextEventUiState(
+                courseCode = event.courseCode,
+                title = event.title,
+                dtstartFormatted = event.dtstart.format(HomeUiState.TIME_FORMATTER),
+                location = event.location
+            )
+        }
+    }
 
     init {
         viewModelScope.launch {
@@ -90,7 +132,12 @@ class HomeViewModel @Inject constructor(
                 .combine(alarmRepository.debugConfig) { triple: Triple<List<AlarmSchedule>?, List<ManualOverride>, AlarmConfig>, debugConfig: DebugConfig ->
                     quadruple(triple.first, triple.second, triple.third, debugConfig)
                 }
-                .collect { (schedules, overrides, config, debugConfig) ->
+                .combine(timetableRepository.eventsFlow) { quad: quadruple<List<AlarmSchedule>?, List<ManualOverride>, AlarmConfig, DebugConfig>, events: List<TimetableEvent> ->
+                    quad to events
+                }
+                .collect { (quad, events) ->
+                    val (schedules, overrides, config, debugConfig) = quad
+
                     // Log full config when UI becomes visible (foreground app open)
                     if (debugConfig.debugModeEnabled) {
                         debugLogger.logFullConfig(config, debugConfig)
@@ -122,18 +169,25 @@ class HomeViewModel @Inject constructor(
                         clock.now()
                     }
 
+                    val zone = zoneProvider.zone
+                    val nowLocal = now.atZone(zone).toLocalDateTime()
+                    val today = nowLocal.toLocalDate()
+                    val tomorrow = today.plusDays(1)
+
+                    val nextEvent = computeNextEvent(events, now, zone, today, tomorrow)
+
                     val nextAlarmText = if (schedules.isNullOrEmpty()) {
                         "No alarms set"
                     } else {
-                        val zone = ZoneId.systemDefault()
+                        val alarmZone = ZoneId.systemDefault()
                         val firstUpcoming = schedules
                             .flatMap { it.alarms }
                             .filter { it.triggerAt.isAfter(now) }
                             .minByOrNull { it.triggerAt.toEpochMilli() }
 
                         if (firstUpcoming != null) {
-                            val alarmDate = firstUpcoming.triggerAt.atZone(zone).toLocalDate()
-                            val alarmLocalTime = firstUpcoming.triggerAt.atZone(zone).toLocalTime()
+                            val alarmDate = firstUpcoming.triggerAt.atZone(alarmZone).toLocalDate()
+                            val alarmLocalTime = firstUpcoming.triggerAt.atZone(alarmZone).toLocalTime()
                             val period = if (alarmLocalTime.hour < 12) "AM" else "PM"
                             "Next alarm: ${alarmLocalTime.hour}:${alarmLocalTime.minute.toString().padStart(2, '0')} $period on $alarmDate"
                         } else {
@@ -152,11 +206,11 @@ class HomeViewModel @Inject constructor(
                     val scheduledAlarms = if (schedules.isNullOrEmpty()) {
                         emptyList()
                     } else {
-                        val zone = ZoneId.systemDefault()
+                        val alarmZone = ZoneId.systemDefault()
                         schedules
                             .flatMap { schedule ->
                                 schedule.alarms.map { alarm ->
-                                    val triggerLocal = alarm.triggerAt.atZone(zone)
+                                    val triggerLocal = alarm.triggerAt.atZone(alarmZone)
                                     val dayName = triggerLocal.dayOfWeek.getDisplayName(
                                         TextStyle.SHORT_STANDALONE,
                                         java.util.Locale.getDefault()
@@ -185,6 +239,7 @@ class HomeViewModel @Inject constructor(
                     _uiState.value = HomeUiState(
                         nextAlarmText = nextAlarmText,
                         bedtimeText = bedtimeText,
+                        nextEvent = nextEvent,
                         overrideText = overrideText,
                         scheduledAlarms = scheduledAlarms
                     )

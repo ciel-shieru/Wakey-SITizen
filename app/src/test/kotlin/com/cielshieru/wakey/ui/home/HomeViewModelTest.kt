@@ -8,6 +8,8 @@ import com.cielshieru.wakey.fakes.FakeAlarmRepository
 import com.cielshieru.wakey.fakes.FakeClock
 import com.cielshieru.wakey.fakes.FakeSyncStatus
 import com.cielshieru.wakey.fakes.FakeSyncUseCase
+import com.cielshieru.wakey.fakes.FakeTimetableRepository
+import com.cielshieru.wakey.fakes.FakeZoneProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -25,7 +27,9 @@ import org.junit.Before
 import org.junit.Test
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -38,6 +42,10 @@ class HomeViewModelTest {
         private set
     var fakeSyncStatus: FakeSyncStatus = FakeSyncStatus()
         private set
+    var fakeTimetableRepository: FakeTimetableRepository = FakeTimetableRepository()
+        private set
+    var fakeZoneProvider: FakeZoneProvider = FakeZoneProvider()
+        private set
 
     private lateinit var viewModel: HomeViewModel
 
@@ -49,13 +57,17 @@ class HomeViewModelTest {
         fakeAlarmRepository = FakeAlarmRepository()
         fakeSyncUseCase = FakeSyncUseCase()
         fakeSyncStatus = FakeSyncStatus()
+        fakeTimetableRepository = FakeTimetableRepository()
+        fakeZoneProvider = FakeZoneProvider()
 
         viewModel = HomeViewModel(
             alarmRepository = fakeAlarmRepository,
             syncStatus = fakeSyncStatus,
             clock = fakeClock,
             syncOperations = fakeSyncUseCase,
-            debugLogger = DebugLogger(null, false)
+            debugLogger = DebugLogger(null, false),
+            timetableRepository = fakeTimetableRepository,
+            zoneProvider = fakeZoneProvider
         )
     }
 
@@ -422,5 +434,147 @@ class HomeViewModelTest {
 
         val state = viewModel.uiState.value
         assertNull(state.bedtimeText)
+    }
+
+    @Test
+    fun `nextEvent shows today's first event when it hasn't started yet`() = runTest {
+        val zone = ZoneId.of("Asia/Singapore")
+        fakeZoneProvider.zone = zone
+        val now = fakeClock.now()
+        val nowLocal = LocalDateTime.ofInstant(now, zone)
+
+        val futureEventTime = nowLocal.plusHours(2)
+        val event = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "CS1010",
+            title = "Programming Methodology",
+            summary = "",
+            dtstart = futureEventTime,
+            dtend = futureEventTime.plusHours(1),
+            location = "LT27",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        fakeTimetableRepository.events = listOf(event)
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.nextEvent)
+        with(state.nextEvent!!) {
+            assertEquals("CS1010", courseCode)
+            assertEquals("Programming Methodology", title)
+            assertEquals("LT27", location)
+        }
+    }
+
+    @Test
+    fun `nextEvent shows tomorrow's first event when today's has already started`() = runTest {
+        val zone = ZoneId.of("Asia/Singapore")
+        fakeZoneProvider.zone = zone
+        val now = fakeClock.now()
+        val nowLocal = LocalDateTime.ofInstant(now, zone)
+
+        val pastEventTime = nowLocal.minusHours(1)
+        val futureEventTime = nowLocal.plusDays(1).plusHours(2)
+
+        val todayEvent = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "CS1010",
+            title = "Today's Class",
+            summary = "",
+            dtstart = pastEventTime,
+            dtend = pastEventTime.plusHours(1),
+            location = "LT27",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        val tomorrowEvent = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "MA2002",
+            title = "Linear Algebra",
+            summary = "",
+            dtstart = futureEventTime,
+            dtend = futureEventTime.plusHours(1),
+            location = "AUD1",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        fakeTimetableRepository.events = listOf(todayEvent, tomorrowEvent)
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.nextEvent)
+        with(state.nextEvent!!) {
+            assertEquals("MA2002", courseCode)
+            assertEquals("Linear Algebra", title)
+            assertEquals("AUD1", location)
+        }
+    }
+
+    @Test
+    fun `nextEvent shows tomorrow's first event when today has no events`() = runTest {
+        val zone = ZoneId.of("Asia/Singapore")
+        fakeZoneProvider.zone = zone
+        val now = fakeClock.now()
+        val nowLocal = LocalDateTime.ofInstant(now, zone)
+
+        val tomorrowEventTime = nowLocal.plusDays(1).plusHours(2)
+        val tomorrowEvent = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "EE3011",
+            title = "Digital Systems",
+            summary = "",
+            dtstart = tomorrowEventTime,
+            dtend = tomorrowEventTime.plusHours(1),
+            location = "LAB4",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        fakeTimetableRepository.events = listOf(tomorrowEvent)
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.nextEvent)
+        with(state.nextEvent!!) {
+            assertEquals("EE3011", courseCode)
+            assertEquals("Digital Systems", title)
+        }
+    }
+
+    @Test
+    fun `nextEvent is null when no timetable events exist`() = runTest {
+        val zone = ZoneId.of("Asia/Singapore")
+        fakeZoneProvider.zone = zone
+        fakeTimetableRepository.events = emptyList()
+
+        val state = viewModel.uiState.value
+        assertNull(state.nextEvent)
+    }
+
+    @Test
+    fun `nextEvent shows tomorrow's event when today's event starts exactly at now`() = runTest {
+        val zone = ZoneId.of("Asia/Singapore")
+        fakeZoneProvider.zone = zone
+        val now = fakeClock.now()
+        val nowLocal = LocalDateTime.ofInstant(now, zone)
+
+        val todayEventTime = nowLocal
+        val tomorrowEventTime = nowLocal.plusDays(1).plusHours(2)
+
+        val todayEvent = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "CS1010",
+            title = "Today's Class at Now",
+            summary = "",
+            dtstart = todayEventTime,
+            dtend = todayEventTime.plusHours(1),
+            location = "LT27",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        val tomorrowEvent = com.cielshieru.wakey.domain.model.TimetableEvent(
+            courseCode = "MA2002",
+            title = "Tomorrow's Class",
+            summary = "",
+            dtstart = tomorrowEventTime,
+            dtend = tomorrowEventTime.plusHours(1),
+            location = "AUD1",
+            eventType = com.cielshieru.wakey.domain.model.EventKind.CAMPUS
+        )
+        fakeTimetableRepository.events = listOf(todayEvent, tomorrowEvent)
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.nextEvent)
+        with(state.nextEvent!!) {
+            assertEquals("MA2002", courseCode)
+            assertEquals("Tomorrow's Class", title)
+        }
     }
 }
