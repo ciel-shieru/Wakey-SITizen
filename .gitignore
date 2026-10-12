@@ -38,3 +38,4 @@ replay_pid*
 .externalNativeBuild
 .cxx
 *.hprof
+.opencode/
