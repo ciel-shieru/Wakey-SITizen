@@ -6,6 +6,20 @@ import java.time.LocalDate
 
 class FakeCalendarEventSource : CalendarEventSource {
     var events: List<ExternalEvent> = emptyList()
+    private var eventsByDate: Map<LocalDate, List<ExternalEvent>> = emptyMap()
+    val requestedDates = mutableListOf<LocalDate>()
 
-    override suspend fun getEventsForDate(date: LocalDate, calendarIds: List<String>): List<ExternalEvent> = events
+    override suspend fun getEventsForDate(date: LocalDate, calendarIds: List<String>): List<ExternalEvent> {
+        requestedDates.add(date)
+        return eventsByDate.getOrElse(date) { events }
+    }
+
+    fun setEventsByDate(map: Map<LocalDate, List<ExternalEvent>>) {
+        eventsByDate = map
+        requestedDates.clear()
+    }
+
+    fun clearRequestedDates() {
+        requestedDates.clear()
+    }
 }

@@ -95,7 +95,11 @@ class SyncWorker @AssistedInject constructor(
             }
 
             // Step 1: fetch timetable (stale-while-revalidate on failure).
-            val events = fetchTimetable(config, now, zone)
+            val events = fetchTimetable(config, now, zone, targetDateLocal)
+
+            if (debugConfig.debugModeEnabled && config.discoveryMode == DiscoveryMode.DeviceCalendar && targetDateLocal != null) {
+                Log.d(DEBUG_TAG, "[Discovery] Fetching DeviceCalendar events for $targetDateLocal .. ${targetDateLocal.plusDays(6)}")
+            }
 
             if (debugConfig.debugModeEnabled) {
                 val source = when (config.discoveryMode) {
@@ -280,7 +284,8 @@ class SyncWorker @AssistedInject constructor(
     private suspend fun fetchTimetable(
         config: AlarmConfig,
         now: java.time.Instant,
-        zone: java.time.ZoneId
+        zone: java.time.ZoneId,
+        targetDateOverride: LocalDate? = null
     ): List<TimetableEvent> =
         when (config.discoveryMode) {
             DiscoveryMode.RemoteServer -> {
@@ -299,7 +304,7 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
             DiscoveryMode.DeviceCalendar -> {
-                val today = now.atZone(zone).toLocalDate()
+                val today = targetDateOverride ?: now.atZone(zone).toLocalDate()
                 val daysToFetch = 7
                 (0 until daysToFetch).flatMap { offset ->
                     calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), config.selectedCalendarIds)

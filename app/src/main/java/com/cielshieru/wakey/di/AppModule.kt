@@ -71,9 +71,7 @@ object AppModule {
     @Singleton
     fun provideTimetableClient(
         remoteServerProvider: RemoteServerProvider
-    ): TimetableClient = TimetableClient(
-        remoteServerProvider = remoteServerProvider
-    )
+    ): TimetableClient = TimetableClient(remoteServerProvider)
 
     @Provides
     @Singleton
