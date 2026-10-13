@@ -42,8 +42,8 @@ suspend fun getReadableCalendars(context: Context): List<CalendarEntry> = withCo
         CalendarContract.Calendars.ACCOUNT_NAME,
         CalendarContract.Calendars.ACCOUNT_TYPE
     )
-    val selection = "access_level >= ?"
-    val selectionArgs = arrayOf("1")
+    val selection: String? = null
+    val selectionArgs: Array<String>? = null
 
     val cursor = resolver.query(uri, projection, selection, selectionArgs, null) ?: return@withContext emptyList()
 
