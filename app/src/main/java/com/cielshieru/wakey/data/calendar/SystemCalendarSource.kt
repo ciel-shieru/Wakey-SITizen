@@ -119,13 +119,10 @@ class SystemCalendarSource(
     }
 
     private companion object {
-        const val COL_ID = 0
-        const val COL_DISPLAY_NAME = 1
-        const val COL_ACCOUNT_NAME = 2
-        const val COL_TITLE = 3
-        const val COL_DTSTART = 4
-        const val COL_DTEND = 5
-        const val COL_LOCATION = 6
-        const val COL_ALL_DAY = 7
+        const val COL_TITLE = 0
+        const val COL_DTSTART = 1
+        const val COL_DTEND = 2
+        const val COL_LOCATION = 3
+        const val COL_ALL_DAY = 4
     }
 }
