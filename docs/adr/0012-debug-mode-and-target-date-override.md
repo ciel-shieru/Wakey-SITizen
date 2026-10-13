@@ -159,6 +159,7 @@ A hidden Activity accessible only via `am broadcast` intent is the most secure a
 - `BedtimeComputer.compute()` target-date awareness (pass computed "current date" through the pipeline).
 - Unit tests for Debug Mode paths (ensure production behavior is unaffected when Debug Mode is off).
 - ProGuard rules if any debug classes are referenced via reflection (unlikely, but verify).
+- ADR-0019 narrowed the constraint that "target date does NOT affect timetable fetching" for DeviceCalendar discovery mode — in debug mode with DeviceCalendar, the fetch window now anchors to the target date to avoid date mismatch between fetched events and alarm computation.
 
 ## References
 
