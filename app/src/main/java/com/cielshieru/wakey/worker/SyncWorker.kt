@@ -238,7 +238,7 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
 
-            val bedtime = BedtimeComputer.compute(finalSchedules, config, if (debugConfig.debugModeEnabled) targetDateInstant else now)
+            val bedtime = BedtimeComputer.compute(finalSchedules, config, now)
             if (debugConfig.debugModeEnabled) {
                 if (bedtime != null) {
                     debugLogger.logBedtimeSet(bedtime)

@@ -169,6 +169,8 @@ class HomeViewModel @Inject constructor(
                         clock.now()
                     }
 
+                    val bedtimeNow = clock.now()
+
                     val zone = zoneProvider.zone
                     val nowLocal = now.atZone(zone).toLocalDateTime()
                     val today = nowLocal.toLocalDate()
@@ -196,7 +198,7 @@ class HomeViewModel @Inject constructor(
                     }
 
                     val bedtimeText = if (!schedules.isNullOrEmpty() && config.bedtimeEnabled) {
-                        BedtimeComputer.compute(schedules, config, now)?.let { reminder ->
+                        BedtimeComputer.compute(schedules, config, bedtimeNow)?.let { reminder ->
                             "Bedtime: ${reminder.triggerAt.atZone(ZoneId.systemDefault()).format(HomeUiState.TIME_FORMATTER)}"
                         }
                     } else {
