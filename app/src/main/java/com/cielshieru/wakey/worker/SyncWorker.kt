@@ -18,6 +18,8 @@ import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.overridesFlow
 import com.cielshieru.wakey.data.store.OverrideStore.saveOverrides
+import com.cielshieru.wakey.data.store.DeviceCalendarTimetableStore.clearDeviceCalendarEvents
+import com.cielshieru.wakey.data.store.DeviceCalendarTimetableStore.saveDeviceCalendarEvents
 import com.cielshieru.wakey.data.store.TimetableStore.saveTimetable
 import com.cielshieru.wakey.data.store.TimetableStore.timetableFlow
 import com.cielshieru.wakey.domain.AdjustForExternalEvents
@@ -286,12 +288,13 @@ class SyncWorker @AssistedInject constructor(
         now: java.time.Instant,
         zone: java.time.ZoneId,
         targetDateOverride: LocalDate? = null
-    ): List<TimetableEvent> =
-        when (config.discoveryMode) {
+    ): List<TimetableEvent> {
+        val events = when (config.discoveryMode) {
             DiscoveryMode.RemoteServer -> {
                 when (val result = timetableClient.fetch()) {
                     is TimetableClient.Result.Success -> {
                         dataStore.saveTimetable(result.response)
+                        dataStore.clearDeviceCalendarEvents()
                         result.response.events.map { TimetableEvent.fromJson(it) }
                     }
                     is TimetableClient.Result.Error -> {
@@ -325,6 +328,13 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
         }
+
+        if (config.discoveryMode == DiscoveryMode.DeviceCalendar) {
+            dataStore.saveDeviceCalendarEvents(events)
+        }
+
+        return events
+    }
 
     companion object {
         private const val TAG = "SyncWorker"

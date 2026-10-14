@@ -2,12 +2,16 @@ package com.cielshieru.wakey.domain.model
 
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class TimetableEvent(
     val courseCode: String,
     val title: String,
     val summary: String,
+    @Serializable(with = LocalDateTimeSerializer::class)
     val dtstart: LocalDateTime,
+    @Serializable(with = LocalDateTimeSerializer::class)
     val dtend: LocalDateTime,
     val location: String,
     val eventType: EventKind

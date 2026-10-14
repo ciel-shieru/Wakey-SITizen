@@ -13,6 +13,7 @@ import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
 import com.cielshieru.wakey.data.repository.TimetableRepositoryImpl
 import com.cielshieru.wakey.data.repository.WorkManagerSyncStatus
+import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
 import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.port.DebugConfigProvider
@@ -114,7 +115,11 @@ object AppModule {
     fun provideTimetableRepository(
         client: TimetableClient,
         datastore: DataStore<Preferences>
-    ): TimetableRepository = TimetableRepositoryImpl(client, datastore)
+    ): TimetableRepository = TimetableRepositoryImpl(
+        client,
+        datastore,
+        datastore.data.configFlow()
+    )
 
     @Provides
     @Singleton

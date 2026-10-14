@@ -7,6 +7,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 internal object InstantSerializer : KSerializer<Instant> {
     override val descriptor =
@@ -31,5 +32,18 @@ internal object LocalDateSerializer : KSerializer<LocalDate> {
 
     override fun deserialize(decoder: Decoder): LocalDate {
         return LocalDate.parse(decoder.decodeString())
+    }
+}
+
+internal object LocalDateTimeSerializer : KSerializer<LocalDateTime> {
+    override val descriptor =
+        PrimitiveSerialDescriptor("com.cielshieru.wakey.domain.model.LocalDateTime", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: LocalDateTime) {
+        encoder.encodeString(value.toString())
+    }
+
+    override fun deserialize(decoder: Decoder): LocalDateTime {
+        return LocalDateTime.parse(decoder.decodeString())
     }
 }
