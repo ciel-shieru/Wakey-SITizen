@@ -6,6 +6,19 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+val androidxConcurrentVersion = libs.versions.androidxConcurrent.get()
+
+configurations.configureEach {
+    if (name.contains("AndroidTest") && name.endsWith("Classpath")) {
+        // WorkManager's test artifact requires 1.2.0; keep test classpaths aligned
+        // even if an existing dependency lock state pins an older release.
+        resolutionStrategy.force(
+            "androidx.concurrent:concurrent-futures:$androidxConcurrentVersion",
+            "androidx.concurrent:concurrent-futures-ktx:$androidxConcurrentVersion",
+        )
+    }
+}
+
 android {
     namespace = "com.cielshieru.wakey"
     compileSdk = 37
