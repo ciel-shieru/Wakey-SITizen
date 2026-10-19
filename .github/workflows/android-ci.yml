@@ -43,8 +43,13 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          # Android 17 / API 37 is currently distributed on the preview SDK channel.
-          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
+          # Android 17 / API 37 is published as android-37.0 on the preview channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          # The project currently declares compileSdk = 37; provide the legacy SDK path
+          # expected by Gradle/AGP versions that do not resolve the minor-version name.
+          if [[ ! -d "$sdk_root/platforms/android-37" ]]; then
+            ln -sfn android-37.0 "$sdk_root/platforms/android-37"
+          fi
 
       - name: Run Android lint
         run: ./gradlew app:lint
@@ -78,8 +83,13 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          # Android 17 / API 37 is currently distributed on the preview SDK channel.
-          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
+          # Android 17 / API 37 is published as android-37.0 on the preview channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          # The project currently declares compileSdk = 37; provide the legacy SDK path
+          # expected by Gradle/AGP versions that do not resolve the minor-version name.
+          if [[ ! -d "$sdk_root/platforms/android-37" ]]; then
+            ln -sfn android-37.0 "$sdk_root/platforms/android-37"
+          fi
 
       - name: Run JVM unit tests
         run: ./gradlew test
@@ -113,8 +123,13 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          # Android 17 / API 37 is currently distributed on the preview SDK channel.
-          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
+          # Android 17 / API 37 is published as android-37.0 on the preview channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37.0" "build-tools;37.0.0"
+          # The project currently declares compileSdk = 37; provide the legacy SDK path
+          # expected by Gradle/AGP versions that do not resolve the minor-version name.
+          if [[ ! -d "$sdk_root/platforms/android-37" ]]; then
+            ln -sfn android-37.0 "$sdk_root/platforms/android-37"
+          fi
 
       - name: Build debug APK
         run: ./gradlew app:assembleDebug
