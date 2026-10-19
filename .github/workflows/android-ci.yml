@@ -43,7 +43,8 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          "$sdkmanager_bin" --install "platforms;android-37"
+          # Android 17 / API 37 is currently distributed on the preview SDK channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
 
       - name: Run Android lint
         run: ./gradlew app:lint
@@ -77,7 +78,8 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          "$sdkmanager_bin" --install "platforms;android-37"
+          # Android 17 / API 37 is currently distributed on the preview SDK channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
 
       - name: Run JVM unit tests
         run: ./gradlew test
@@ -111,7 +113,8 @@ jobs:
           set +o pipefail
           yes | "$sdkmanager_bin" --licenses
           set -o pipefail
-          "$sdkmanager_bin" --install "platforms;android-37"
+          # Android 17 / API 37 is currently distributed on the preview SDK channel.
+          "$sdkmanager_bin" --install --channel=3 "platforms;android-37" "build-tools;37.0.0"
 
       - name: Build debug APK
         run: ./gradlew app:assembleDebug
