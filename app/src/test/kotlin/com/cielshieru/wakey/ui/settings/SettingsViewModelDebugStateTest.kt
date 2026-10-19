@@ -161,6 +161,7 @@ class SettingsViewModelDebugStateTest {
         assertEquals(true, updatedDebug.debugModeEnabled)
         assertEquals(1700000000000L, updatedDebug.targetDateMillis)
     }
+
     @Test
     fun `discovery mode changes preserve selected calendars and calendar permission`() = runTest {
         viewModel.setPermissionGranted("READ_CALENDAR", true)
