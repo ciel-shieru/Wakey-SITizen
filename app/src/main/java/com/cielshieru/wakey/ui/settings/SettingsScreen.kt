@@ -365,7 +365,7 @@ fun SettingsScreen(
                     ExposedDropdownCalendarPicker(
                         state = uiState.onlineCalendarPicker,
                         label = "Online Timetable Calendar",
-                                                onSelectCalendar = viewModel::selectOnlineCalendar
+                        onSelectCalendar = viewModel::selectOnlineCalendar
                     )
                 }
 
@@ -377,7 +377,7 @@ fun SettingsScreen(
                     ExposedDropdownCalendarPicker(
                         state = uiState.campusCalendarPicker,
                         label = "In-Campus Timetable Calendar",
-                                                onSelectCalendar = viewModel::selectCampusCalendar
+                        onSelectCalendar = viewModel::selectCampusCalendar
                     )
                 }
 
@@ -533,7 +533,7 @@ fun SettingsScreen(
                     item {
                         MultiSelectCalendarPicker(
                             state = uiState.externalEventCalendarPicker,
-                                                        onCalendarToggle = viewModel::toggleExternalEventCalendar,
+                            onCalendarToggle = viewModel::toggleExternalEventCalendar,
                             label = "External Event Calendars"
                         )
                     }
