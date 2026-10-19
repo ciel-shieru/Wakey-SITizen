@@ -59,7 +59,6 @@ data class CalendarDropdownUiState(
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
     val permissionDenied: Boolean = false,
-    val showDropdown: Boolean = false
 )
 
 data class MultiSelectCalendarPickerUiState(
@@ -68,7 +67,6 @@ data class MultiSelectCalendarPickerUiState(
     val isLoading: Boolean = false,
     val permissionGranted: Boolean = false,
     val permissionDenied: Boolean = false,
-    val showDropdown: Boolean = false
 )
 
 sealed interface SyncEvent {
@@ -168,24 +166,6 @@ class SettingsViewModel @Inject constructor(
 
     fun toggleExternalEvents(enabled: Boolean) {
         _uiState.update { it.copy(externalEnabled = enabled) }
-        if (!enabled) {
-            _uiState.update {
-                it.copy(
-                    onlineCalendarPicker = it.onlineCalendarPicker.copy(
-                        isLoading = false,
-                        permissionGranted = false
-                    ),
-                    campusCalendarPicker = it.campusCalendarPicker.copy(
-                        isLoading = false,
-                        permissionGranted = false
-                    ),
-                    externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
-                        isLoading = false,
-                        permissionGranted = false
-                    )
-                )
-            }
-        }
     }
 
     fun toggleBedtimeEnabled(enabled: Boolean) {
@@ -216,34 +196,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun selectDiscoveryMode(mode: DiscoveryMode) {
-        _uiState.update {
-            it.copy(
-                discoveryMode = mode,
-                onlineCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
-                    it.onlineCalendarPicker.copy(
-                        selectedId = null,
-                        permissionGranted = false
-                    )
-                } else {
-                    it.onlineCalendarPicker
-                },
-                campusCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
-                    it.campusCalendarPicker.copy(
-                        selectedId = null,
-                        permissionGranted = false
-                    )
-                } else {
-                    it.campusCalendarPicker
-                },
-                externalEventCalendarPicker = if (mode == DiscoveryMode.RemoteServer) {
-                    it.externalEventCalendarPicker.copy(
-                        permissionGranted = false
-                    )
-                } else {
-                    it.externalEventCalendarPicker
-                }
-            )
-        }
+        // Keep device-calendar selections and READ_CALENDAR permission state when the
+        // user temporarily switches to Remote Server and back.
+        _uiState.update { it.copy(discoveryMode = mode) }
     }
 
     fun updateRemoteServerUrl(value: String) {
@@ -301,40 +256,31 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun loadOnlineCalendars(calendars: List<CalendarEntry>) {
-        _uiState.update {
-            it.copy(
-                onlineCalendarPicker = it.onlineCalendarPicker.copy(
+    fun setDeviceCalendarLoading(isLoading: Boolean) {
+        _uiState.update { state ->
+            state.copy(
+                onlineCalendarPicker = state.onlineCalendarPicker.copy(isLoading = isLoading),
+                campusCalendarPicker = state.campusCalendarPicker.copy(isLoading = isLoading),
+                externalEventCalendarPicker = state.externalEventCalendarPicker.copy(isLoading = isLoading)
+            )
+        }
+    }
+
+    fun loadDeviceCalendars(calendars: List<CalendarEntry>) {
+        _uiState.update { state ->
+            state.copy(
+                onlineCalendarPicker = state.onlineCalendarPicker.copy(
+                    calendars = calendars,
+                    isLoading = false
+                ),
+                campusCalendarPicker = state.campusCalendarPicker.copy(
+                    calendars = calendars,
+                    isLoading = false
+                ),
+                externalEventCalendarPicker = state.externalEventCalendarPicker.copy(
                     calendars = calendars,
                     isLoading = false
                 )
-            )
-        }
-    }
-
-    fun resetOnlineCalendarLoading() {
-        _uiState.update {
-            it.copy(
-                onlineCalendarPicker = it.onlineCalendarPicker.copy(isLoading = false)
-            )
-        }
-    }
-
-    fun loadCampusCalendars(calendars: List<CalendarEntry>) {
-        _uiState.update {
-            it.copy(
-                campusCalendarPicker = it.campusCalendarPicker.copy(
-                    calendars = calendars,
-                    isLoading = false
-                )
-            )
-        }
-    }
-
-    fun resetCampusCalendarLoading() {
-        _uiState.update {
-            it.copy(
-                campusCalendarPicker = it.campusCalendarPicker.copy(isLoading = false)
             )
         }
     }
@@ -355,75 +301,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun toggleOnlineDropdown() {
-        _uiState.update { state ->
-            val picker = state.onlineCalendarPicker
-            if (picker.permissionGranted && !picker.isLoading) {
-                state.copy(
-                    onlineCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
-                )
-            } else {
-                viewModelScope.launch {
-                    _uiState.update {
-                        it.copy(
-                            onlineCalendarPicker = it.onlineCalendarPicker.copy(
-                                isLoading = true,
-                                showDropdown = false
-                            )
-                        )
-                    }
-                }
-                state
-            }
-        }
-    }
-
-    fun toggleCampusDropdown() {
-        _uiState.update { state ->
-            val picker = state.campusCalendarPicker
-            if (picker.permissionGranted && !picker.isLoading) {
-                state.copy(
-                    campusCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
-                )
-            } else {
-                viewModelScope.launch {
-                    _uiState.update {
-                        it.copy(
-                            campusCalendarPicker = it.campusCalendarPicker.copy(
-                                isLoading = true,
-                                showDropdown = false
-                            )
-                        )
-                    }
-                }
-                state
-            }
-        }
-    }
-
-    fun toggleExternalEventCalendarDropdown() {
-        _uiState.update { state ->
-            val picker = state.externalEventCalendarPicker
-            if (picker.permissionGranted && !picker.isLoading) {
-                state.copy(
-                    externalEventCalendarPicker = picker.copy(showDropdown = !picker.showDropdown)
-                )
-            } else {
-                viewModelScope.launch {
-                    _uiState.update {
-                        it.copy(
-                            externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
-                                isLoading = true,
-                                showDropdown = false
-                            )
-                        )
-                    }
-                }
-                state
-            }
-        }
-    }
-
     fun toggleExternalEventCalendar(calendarId: String) {
         _uiState.update { state ->
             val currentIds = state.externalCalendarIds.toMutableSet()
@@ -437,26 +314,6 @@ class SettingsViewModel @Inject constructor(
                 externalEventCalendarPicker = state.externalEventCalendarPicker.copy(
                     selectedIds = currentIds.toList()
                 )
-            )
-        }
-    }
-
-    fun loadExternalEventCalendars(calendars: List<CalendarEntry>) {
-        _uiState.update {
-            it.copy(
-                externalEventCalendarPicker = it.externalEventCalendarPicker.copy(
-                    calendars = calendars,
-                    isLoading = false,
-                    permissionGranted = true
-                )
-            )
-        }
-    }
-
-    fun resetExternalEventCalendarLoading() {
-        _uiState.update {
-            it.copy(
-                externalEventCalendarPicker = it.externalEventCalendarPicker.copy(isLoading = false)
             )
         }
     }

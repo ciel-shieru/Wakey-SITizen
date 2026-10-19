@@ -161,4 +161,26 @@ class SettingsViewModelDebugStateTest {
         assertEquals(true, updatedDebug.debugModeEnabled)
         assertEquals(1700000000000L, updatedDebug.targetDateMillis)
     }
+
+    @Test
+    fun `discovery mode changes preserve selected calendars and calendar permission`() = runTest {
+        viewModel.setPermissionGranted("READ_CALENDAR", true)
+        viewModel.selectOnlineCalendar("online-calendar")
+        viewModel.selectCampusCalendar("campus-calendar")
+        viewModel.toggleExternalEventCalendar("external-calendar")
+
+        viewModel.selectDiscoveryMode(com.cielshieru.wakey.domain.model.DiscoveryMode.RemoteServer)
+        viewModel.selectDiscoveryMode(com.cielshieru.wakey.domain.model.DiscoveryMode.DeviceCalendar)
+        viewModel.toggleExternalEvents(false)
+        viewModel.toggleExternalEvents(true)
+
+        val state = viewModel.uiState.value
+        assertEquals("online-calendar", state.onlineCalendarPicker.selectedId)
+        assertEquals("campus-calendar", state.campusCalendarPicker.selectedId)
+        assertEquals(listOf("external-calendar"), state.externalEventCalendarPicker.selectedIds)
+        assertEquals(true, state.onlineCalendarPicker.permissionGranted)
+        assertEquals(true, state.campusCalendarPicker.permissionGranted)
+        assertEquals(true, state.externalEventCalendarPicker.permissionGranted)
+    }
+
 }

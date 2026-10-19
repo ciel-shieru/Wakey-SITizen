@@ -47,33 +47,14 @@ private fun ValidationSupportingText(
 private fun ExposedDropdownCalendarPicker(
     state: CalendarDropdownUiState,
     label: String,
-    onDropdownToggle: () -> Unit,
     onSelectCalendar: (String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(state.showDropdown) }
-
-    LaunchedEffect(state.showDropdown) {
-        if (state.showDropdown && !expanded) {
-            expanded = true
-        }
-    }
-
-    LaunchedEffect(expanded) {
-        if (!expanded) {
-            onDropdownToggle()
-        }
-    }
+    var expanded by remember { mutableStateOf(false) }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { newExpanded ->
-            if (newExpanded && !expanded) {
-                onDropdownToggle()
-            } else if (!newExpanded && expanded) {
-                expanded = false
-            }
-        },
+        onExpandedChange = { expanded = it },
         modifier = modifier
     ) {
         OutlinedTextField(
@@ -135,23 +116,10 @@ private fun ExposedDropdownCalendarPicker(
 private fun MultiSelectCalendarPicker(
     state: MultiSelectCalendarPickerUiState,
     label: String,
-    onDropdownToggle: () -> Unit,
     onCalendarToggle: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var expanded by remember { mutableStateOf(state.showDropdown) }
-
-    LaunchedEffect(state.showDropdown) {
-        if (state.showDropdown && !expanded) {
-            expanded = true
-        }
-    }
-
-    LaunchedEffect(expanded) {
-        if (!expanded) {
-            onDropdownToggle()
-        }
-    }
+    var expanded by remember { mutableStateOf(false) }
 
     val selectedDisplayText = when {
         state.selectedIds.isEmpty() -> "Select calendars"
@@ -168,13 +136,7 @@ private fun MultiSelectCalendarPicker(
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { newExpanded ->
-            if (newExpanded && !expanded) {
-                onDropdownToggle()
-            } else if (!newExpanded && expanded) {
-                expanded = false
-            }
-        },
+        onExpandedChange = { expanded = it },
         modifier = modifier
     ) {
         OutlinedTextField(
@@ -256,47 +218,28 @@ fun SettingsScreen(
         ?.status == PermissionStatus.Granted
 
     LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode) {
+        val calendarsNeedLoading =
+            uiState.onlineCalendarPicker.calendars.isEmpty() ||
+                uiState.campusCalendarPicker.calendars.isEmpty() ||
+                uiState.externalEventCalendarPicker.calendars.isEmpty()
+        val anyPickerLoading =
+            uiState.onlineCalendarPicker.isLoading ||
+                uiState.campusCalendarPicker.isLoading ||
+                uiState.externalEventCalendarPicker.isLoading
+
         if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
             uiState.onlineCalendarPicker.permissionGranted &&
-            uiState.onlineCalendarPicker.calendars.isEmpty() &&
-            !uiState.onlineCalendarPicker.isLoading
+            calendarsNeedLoading &&
+            !anyPickerLoading
         ) {
+            viewModel.setDeviceCalendarLoading(true)
             try {
-                val calendars = getReadableCalendars(context)
-                viewModel.loadOnlineCalendars(calendars)
+                viewModel.loadDeviceCalendars(getReadableCalendars(context))
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                viewModel.setDeviceCalendarLoading(false)
+                throw e
             } catch (e: Exception) {
-                viewModel.resetOnlineCalendarLoading()
-            }
-        }
-    }
-
-    LaunchedEffect(uiState.campusCalendarPicker.permissionGranted, uiState.discoveryMode) {
-        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
-            uiState.campusCalendarPicker.permissionGranted &&
-            uiState.campusCalendarPicker.calendars.isEmpty() &&
-            !uiState.campusCalendarPicker.isLoading
-        ) {
-            try {
-                val calendars = getReadableCalendars(context)
-                viewModel.loadCampusCalendars(calendars)
-            } catch (e: Exception) {
-                viewModel.resetCampusCalendarLoading()
-            }
-        }
-    }
-
-    LaunchedEffect(uiState.externalEventCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
-        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
-            uiState.externalEnabled &&
-            uiState.externalEventCalendarPicker.permissionGranted &&
-            uiState.externalEventCalendarPicker.calendars.isEmpty() &&
-            !uiState.externalEventCalendarPicker.isLoading
-        ) {
-            try {
-                val calendars = getReadableCalendars(context)
-                viewModel.loadExternalEventCalendars(calendars)
-            } catch (e: Exception) {
-                viewModel.resetExternalEventCalendarLoading()
+                viewModel.setDeviceCalendarLoading(false)
             }
         }
     }
@@ -422,7 +365,6 @@ fun SettingsScreen(
                     ExposedDropdownCalendarPicker(
                         state = uiState.onlineCalendarPicker,
                         label = "Online Timetable Calendar",
-                        onDropdownToggle = viewModel::toggleOnlineDropdown,
                         onSelectCalendar = viewModel::selectOnlineCalendar
                     )
                 }
@@ -435,7 +377,6 @@ fun SettingsScreen(
                     ExposedDropdownCalendarPicker(
                         state = uiState.campusCalendarPicker,
                         label = "In-Campus Timetable Calendar",
-                        onDropdownToggle = viewModel::toggleCampusDropdown,
                         onSelectCalendar = viewModel::selectCampusCalendar
                     )
                 }
@@ -592,7 +533,6 @@ fun SettingsScreen(
                     item {
                         MultiSelectCalendarPicker(
                             state = uiState.externalEventCalendarPicker,
-                            onDropdownToggle = viewModel::toggleExternalEventCalendarDropdown,
                             onCalendarToggle = viewModel::toggleExternalEventCalendar,
                             label = "External Event Calendars"
                         )
