@@ -55,7 +55,8 @@ object AlarmComputer {
                 AlarmSchedule.Alarm(
                     index = index,
                     triggerAt = triggerAt,
-                    requestCode = AlarmSchedule.Alarm.computeRequestCode(day, index)
+                    requestCode = AlarmSchedule.Alarm.computeRequestCode(day, index),
+                    ringtoneUri = config.ringtonePlaylist.ringtoneForRepeatIndex(index)
                 )
             }
 

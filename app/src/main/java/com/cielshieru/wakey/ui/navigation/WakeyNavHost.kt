@@ -9,6 +9,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.cielshieru.wakey.ui.home.HomeScreen
+import com.cielshieru.wakey.ui.ringtone.RingtonePickerScreen
 import com.cielshieru.wakey.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
@@ -32,6 +33,23 @@ fun WakeyNavHost(
         composable(Route.Settings.route) {
             Column(modifier = Modifier.fillMaxSize()) {
                 SettingsScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onShowSnackbar = { message ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(message)
+                        }
+                    },
+                    onNavigateToRingtonePicker = { navController.navigate(Route.RingtonePicker.route) }
+                )
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+        composable(Route.RingtonePicker.route) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                RingtonePickerScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onShowSnackbar = { message ->
                         coroutineScope.launch {

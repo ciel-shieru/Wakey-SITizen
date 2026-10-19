@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -68,12 +70,17 @@ object NotificationService {
     fun showAlarmNotification(
         context: Context,
         alarmIndex: Int? = null,
-        alarmDay: String? = null
+        alarmDay: String? = null,
+        ringtoneUri: String? = null
     ) {
         val contentText = if (alarmIndex != null && alarmDay != null) {
             "Alarm $alarmIndex for $alarmDay is ringing now."
         } else {
             "Your alarm is ringing now."
+        }
+
+        ringtoneUri?.let { uri ->
+            playRingtone(context, uri)
         }
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ALARMS)
@@ -110,6 +117,34 @@ object NotificationService {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    private fun playRingtone(context: Context, ringtoneUri: String) {
+        try {
+            val mediaPlayer = MediaPlayer().apply {
+                setDataSource(context, android.net.Uri.parse(ringtoneUri))
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+                setAudioAttributes(audioAttributes)
+                setWakeMode(context, android.os.PowerManager.PARTIAL_WAKE_LOCK)
+                setOnPreparedListener {
+                    it.start()
+                }
+                setOnCompletionListener {
+                    it.release()
+                }
+                setOnErrorListener { mp, error, extra ->
+                    Log.e(TAG, "MediaPlayer error: $error, $extra")
+                    mp?.release()
+                    true
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to play ringtone: $e")
+        }
     }
 
     private fun notifyIfEnabled(

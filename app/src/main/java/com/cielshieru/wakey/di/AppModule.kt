@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.work.WorkManager
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.android.PlatformPermissionChecker
+import com.cielshieru.wakey.data.RingtoneNameResolver
 import com.cielshieru.wakey.data.calendar.SystemCalendarSource
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.repository.AlarmRepositoryImpl
@@ -91,6 +92,12 @@ object AppModule {
         @ApplicationContext context: Context,
         debugLogger: DebugLogger
     ): AlarmService = AlarmService(context, debugLogger)
+
+    @Provides
+    @Singleton
+    fun provideRingtoneNameResolver(
+        @ApplicationContext context: Context
+    ): RingtoneNameResolver = RingtoneNameResolver(context)
 
     @Provides
     @Singleton

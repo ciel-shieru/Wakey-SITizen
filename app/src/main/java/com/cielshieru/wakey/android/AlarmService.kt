@@ -34,6 +34,7 @@ class AlarmService(
         const val ACTION_BEDTIME_REMINDER = "com.cielshieru.wakey.ACTION_BEDTIME_REMINDER"
         const val EXTRA_ALARM_INDEX = "alarm_index"
         const val EXTRA_ALARM_DAY = "alarm_day"
+        const val EXTRA_RINGTONE_URI = "ringtone_uri"
 
         /**
          * Hard cap on alarms per day (ADR-0003). With `maxRepeats <= 20` the
@@ -58,6 +59,7 @@ class AlarmService(
             action = ACTION_WAKE_UP_ALARM
             putExtra(EXTRA_ALARM_INDEX, alarm.index)
             putExtra(EXTRA_ALARM_DAY, day.toString())
+            alarm.ringtoneUri?.let { putExtra(EXTRA_RINGTONE_URI, it) }
         }
 
         val pendingIntent = PendingIntent.getBroadcast(

@@ -238,6 +238,7 @@ private fun MultiSelectCalendarPicker(
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onShowSnackbar: (String) -> Unit,
+    onNavigateToRingtonePicker: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
@@ -454,6 +455,15 @@ fun SettingsScreen(
 
             item {
                 Text("Repeat Pattern", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Button(
+                    onClick = { onNavigateToRingtonePicker() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Manage Ringtones")
+                }
             }
 
             item {

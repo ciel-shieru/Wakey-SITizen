@@ -18,7 +18,8 @@ data class AlarmConfig(
     val selectedCalendarIds: List<String> = emptyList(),
     val bedtimeEnabled: Boolean = false,
     val remoteServerUrl: String = DEFAULT_REMOTE_SERVER_URL,
-    val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar
+    val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
+    val ringtonePlaylist: RingtonePlaylist = RingtonePlaylist.DEFAULT
 ) {
     companion object {
         const val DEFAULT_ONLINE_OFFSET = 60

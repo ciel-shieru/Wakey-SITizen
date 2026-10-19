@@ -17,7 +17,8 @@ data class AlarmSchedule(
         val index: Int,
         @Serializable(with = InstantSerializer::class)
         val triggerAt: Instant,
-        val requestCode: Int
+        val requestCode: Int,
+        val ringtoneUri: String? = null
     ) {
         companion object {
             fun computeRequestCode(day: LocalDate, index: Int): Int =

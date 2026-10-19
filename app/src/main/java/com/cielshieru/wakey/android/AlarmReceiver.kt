@@ -23,7 +23,8 @@ class AlarmReceiver : BroadcastReceiver() {
             AlarmService.ACTION_WAKE_UP_ALARM -> {
                 val alarmIndex = intent.getIntExtra(AlarmService.EXTRA_ALARM_INDEX, -1)
                 val alarmDay = intent.getStringExtra(AlarmService.EXTRA_ALARM_DAY)
-                NotificationService.showAlarmNotification(context, alarmIndex.takeIf { it >= 0 }, alarmDay)
+                val ringtoneUri = intent.getStringExtra(AlarmService.EXTRA_RINGTONE_URI)
+                NotificationService.showAlarmNotification(context, alarmIndex.takeIf { it >= 0 }, alarmDay, ringtoneUri)
             }
 
             AlarmService.ACTION_BEDTIME_REMINDER ->

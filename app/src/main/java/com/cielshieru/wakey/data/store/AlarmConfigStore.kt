@@ -8,8 +8,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.Json
 
 object AlarmConfigStore {
     private val ONLINE_OFFSET = intPreferencesKey("online_offset_minutes")
@@ -26,6 +28,12 @@ object AlarmConfigStore {
     private val DISCOVERY_MODE = stringPreferencesKey("discovery_mode")
     private val SELECTED_CALENDAR_IDS = stringPreferencesKey("selected_calendar_ids")
     private val EXTERNAL_EVENT_CALENDAR_IDS = stringPreferencesKey("external_event_calendar_ids")
+    private val RINGTONE_PLAYLIST = stringPreferencesKey("ringtone_playlist")
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+    }
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
         AlarmConfig(
@@ -43,7 +51,8 @@ object AlarmConfigStore {
                 ?: emptyList(),
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
             remoteServerUrl = prefs[REMOTE_SERVER_LEGACY] ?: prefs[REMOTE_SERVER_URL] ?: AlarmConfig.DEFAULT_REMOTE_SERVER_URL,
-            discoveryMode = parseDiscoveryMode(prefs[DISCOVERY_MODE])
+            discoveryMode = parseDiscoveryMode(prefs[DISCOVERY_MODE]),
+            ringtonePlaylist = parseRingtonePlaylist(prefs[RINGTONE_PLAYLIST])
         )
     }
 
@@ -51,6 +60,16 @@ object AlarmConfigStore {
         return when (value) {
             "device_calendar" -> DiscoveryMode.DeviceCalendar
             else -> DiscoveryMode.RemoteServer
+        }
+    }
+
+    private fun parseRingtonePlaylist(value: String?): RingtonePlaylist {
+        return if (value.isNullOrEmpty()) {
+            RingtonePlaylist.DEFAULT
+        } else {
+            runCatching {
+                json.decodeFromString<RingtonePlaylist>(value)
+            }.getOrNull() ?: RingtonePlaylist.DEFAULT
         }
     }
 
@@ -72,6 +91,7 @@ object AlarmConfigStore {
                 DiscoveryMode.DeviceCalendar -> "device_calendar"
                 DiscoveryMode.RemoteServer -> "remote_server"
             }
+            prefs[RINGTONE_PLAYLIST] = json.encodeToString(RingtonePlaylist.serializer(), config.ringtonePlaylist)
         }
     }
 }
