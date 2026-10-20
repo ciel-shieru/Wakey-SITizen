@@ -1,32 +1,20 @@
 package com.cielshieru.wakey.android
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.media.AudioAttributes
-import android.media.MediaPlayer
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.cielshieru.wakey.ui.MainActivity
 
 /**
- * Notification channels and posting for wake-up alarms and bedtime reminders
- * (ADR-0004/0008).
- *
- * Channels:
- * - [CHANNEL_ALARMS] (`"alarms"`): HIGH importance, vibrating — the user must
- *   hear the wake-up alarm.
- * - [CHANNEL_BEDTIME] (`"bedtime_reminders"`): DEFAULT importance — a gentle
- *   wind-down reminder the user can silence independently of the alarms.
- *
- * On API 33+ [NotificationManager.notify] throws [SecurityException] when the
- * runtime `POST_NOTIFICATIONS` permission is not granted, so every post is
- * guarded by [NotificationManager.areNotificationsEnabled]: if notifications
- * are off the post is skipped and the app continues to function
- * (ADR-0008, permission denial handling).
+ * Notification channels and posting for wake-up alarms and bedtime reminders.
+ * Alarm audio is owned by [AlarmPlaybackService], which loops it until an
+ * explicit stop or a subsequent scheduled alarm replaces it.
  */
 object NotificationService {
 
@@ -36,11 +24,8 @@ object NotificationService {
     const val ALARM_NOTIFICATION_ID = 1
     const val BEDTIME_NOTIFICATION_ID = 2
 
-    /**
-     * Creates the notification channels. Safe to call on every app launch:
-     * `createNotificationChannel` is a no-op for channels that already exist
-     * (it only updates properties the user has not locked).
-     */
+    private const val STOP_ALARM_REQUEST_CODE = 20_001
+
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
@@ -49,7 +34,7 @@ object NotificationService {
             "Wake-up Alarms",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notifications for wake-up alarms"
+            description = "Persistent notifications for ringing wake-up alarms"
             enableVibration(true)
         }
 
@@ -66,35 +51,62 @@ object NotificationService {
         manager.createNotificationChannel(bedtimeChannel)
     }
 
-    /** Posts the wake-up alarm notification on the [CHANNEL_ALARMS] channel. */
+    /**
+     * Builds the foreground-service notification. It is ongoing and has an
+     * explicit Stop alarm action; swiping it away does not stop the alarm.
+     */
+    fun buildAlarmNotification(
+        context: Context,
+        alarmIndex: Int? = null,
+        alarmDay: String? = null,
+        ringtoneUri: String? = null
+    ): Notification {
+        val contentText = if (alarmIndex != null && alarmDay != null) {
+            "Alarm $alarmIndex for $alarmDay is ringing now."
+        } else {
+            "Your alarm is ringing now."
+        }
+        val stopIntent = Intent(context, AlarmPlaybackService::class.java).apply {
+            action = AlarmPlaybackService.ACTION_STOP
+        }
+        val stopPendingIntent = PendingIntent.getService(
+            context,
+            STOP_ALARM_REQUEST_CODE,
+            stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(context, CHANNEL_ALARMS)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Time to wake up!")
+            .setContentText(contentText)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setContentIntent(mainActivityPendingIntent(context))
+            .addAction(android.R.drawable.ic_media_pause, "Stop alarm", stopPendingIntent)
+            .build()
+    }
+
+    /** Posts an alarm notification when called outside the playback service. */
     fun showAlarmNotification(
         context: Context,
         alarmIndex: Int? = null,
         alarmDay: String? = null,
         ringtoneUri: String? = null
     ) {
-        val contentText = if (alarmIndex != null && alarmDay != null) {
-            "Alarm $alarmIndex for $alarmDay is ringing now."
-        } else {
-            "Your alarm is ringing now."
-        }
-
-        ringtoneUri?.let { uri ->
-            playRingtone(context, uri)
-        }
-
-        val builder = NotificationCompat.Builder(context, CHANNEL_ALARMS)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle("Time to wake up!")
-            .setContentText(contentText)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(mainActivityPendingIntent(context))
-
-        notifyIfEnabled(context, ALARM_NOTIFICATION_ID, builder)
+        notifyIfEnabled(
+            context,
+            ALARM_NOTIFICATION_ID,
+            buildAlarmNotification(context, alarmIndex, alarmDay, ringtoneUri)
+        )
     }
 
-    /** Posts the bedtime reminder notification on the [CHANNEL_BEDTIME] channel. */
+    fun cancelAlarmNotification(context: Context) {
+        context.getSystemService(NotificationManager::class.java).cancel(ALARM_NOTIFICATION_ID)
+    }
+
     fun showBedtimeNotification(context: Context) {
         val builder = NotificationCompat.Builder(context, CHANNEL_BEDTIME)
             .setSmallIcon(android.R.drawable.ic_menu_report_image)
@@ -104,7 +116,7 @@ object NotificationService {
             .setAutoCancel(true)
             .setContentIntent(mainActivityPendingIntent(context))
 
-        notifyIfEnabled(context, BEDTIME_NOTIFICATION_ID, builder)
+        notifyIfEnabled(context, BEDTIME_NOTIFICATION_ID, builder.build())
     }
 
     private fun mainActivityPendingIntent(context: Context): PendingIntent {
@@ -119,48 +131,17 @@ object NotificationService {
         )
     }
 
-    private fun playRingtone(context: Context, ringtoneUri: String) {
-        try {
-            val mediaPlayer = MediaPlayer().apply {
-                setDataSource(context, android.net.Uri.parse(ringtoneUri))
-                val audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-                setAudioAttributes(audioAttributes)
-                setWakeMode(context, android.os.PowerManager.PARTIAL_WAKE_LOCK)
-                setOnPreparedListener {
-                    it.start()
-                }
-                setOnCompletionListener {
-                    it.release()
-                }
-                setOnErrorListener { mp, error, extra ->
-                    Log.e(TAG, "MediaPlayer error: $error, $extra")
-                    mp?.release()
-                    true
-                }
-                prepareAsync()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to play ringtone: $e")
-        }
-    }
-
     private fun notifyIfEnabled(
         context: Context,
         notificationId: Int,
-        builder: NotificationCompat.Builder
+        notification: Notification
     ) {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (!manager.areNotificationsEnabled()) {
-            Log.w(
-                TAG,
-                "Notifications are disabled; skipping notification $notificationId (ADR-0008)"
-            )
+            Log.w(TAG, "Notifications are disabled; skipping notification $notificationId")
             return
         }
-        manager.notify(notificationId, builder.build())
+        manager.notify(notificationId, notification)
     }
 
     private const val TAG = "NotificationService"
