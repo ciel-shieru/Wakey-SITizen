@@ -11,12 +11,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.data.store.PermissionStore
+import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
+import com.cielshieru.wakey.domain.port.Clock
+import com.cielshieru.wakey.domain.port.ZoneProvider
 import com.cielshieru.wakey.domain.port.PermissionChecker
 import androidx.work.ExistingPeriodicWorkPolicy
 import com.cielshieru.wakey.usecase.SyncOperations
@@ -83,7 +87,9 @@ class SettingsViewModel @Inject constructor(
     private val alarmRepository: AlarmRepository,
     private val permissionChecker: PermissionChecker,
     private val datastore: DataStore<Preferences>,
-    private val syncUseCase: SyncOperations
+    private val syncUseCase: SyncOperations,
+    private val clock: Clock,
+    private val zoneProvider: ZoneProvider
 ) : ViewModel() {
 
     private var hasLoadedInitialConfig = false
@@ -182,6 +188,30 @@ class SettingsViewModel @Inject constructor(
 
     fun setTargetDate(millis: Long?) {
         _uiState.update { it.copy(targetDateMillis = millis) }
+    }
+
+    fun testAlarmNow() {
+        if (!_uiState.value.debugModeEnabled) return
+
+        // Capture the target before launching the coroutine so dispatch latency
+        // does not shift the meaning of "the next second from button press".
+        val triggerAt = clock.now().plusSeconds(1)
+        val day = triggerAt.atZone(zoneProvider.zone).toLocalDate()
+
+        viewModelScope.launch {
+            val config = alarmRepository.config.first()
+            // Use the ordinary schedule model and AlarmService so the test alarm
+            // traverses the usual AlarmReceiver and playback-service path.
+            alarmRepository.scheduleAlarm(
+                AlarmSchedule.Alarm(
+                    index = 0,
+                    triggerAt = triggerAt,
+                    requestCode = AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE,
+                    ringtoneUri = config.ringtonePlaylist.ringtoneForRepeatIndex(0)
+                ),
+                day
+            )
+        }
     }
 
     fun saveDebugConfig() {

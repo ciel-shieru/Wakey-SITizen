@@ -49,6 +49,7 @@ class AlarmService(
          * current years) so 99_999 can never collide with them.
          */
         const val BEDTIME_REQUEST_CODE = 99_999
+        const val DEBUG_TEST_ALARM_REQUEST_CODE = 99_998
 
         /**
          * Cancel the ordinary AlarmManager PendingIntents for one day without

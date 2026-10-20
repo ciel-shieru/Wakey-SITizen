@@ -71,10 +71,15 @@ class FakeAlarmRepository : AlarmRepository {
     }
 
     val cancelledRequestCodes = mutableListOf<Int>()
+    val scheduledAlarms = mutableListOf<Pair<AlarmSchedule.Alarm, LocalDate>>()
     val dismissedDays = mutableListOf<LocalDate>()
 
     override suspend fun cancelAlarm(requestCode: Int) {
         cancelledRequestCodes.add(requestCode)
+    }
+
+    override suspend fun scheduleAlarm(alarm: AlarmSchedule.Alarm, day: LocalDate) {
+        scheduledAlarms.add(alarm to day)
     }
 
     override suspend fun dismissAlarmsForDay(day: LocalDate) {

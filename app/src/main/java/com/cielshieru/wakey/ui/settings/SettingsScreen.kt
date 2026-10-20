@@ -605,6 +605,15 @@ fun SettingsScreen(
                 }
 
                 item {
+                    Button(
+                        onClick = viewModel::testAlarmNow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Test Alarm Now")
+                    }
+                }
+
+                item {
                     val context = LocalContext.current
                     var showDatePicker by remember { mutableStateOf(false) }
                     val selectedDateText = uiState.targetDateMillis?.let { millis ->

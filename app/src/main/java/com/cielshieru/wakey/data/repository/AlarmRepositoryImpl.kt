@@ -80,6 +80,10 @@ class AlarmRepositoryImpl(
         alarmService.cancelAlarmByRequestCode(requestCode)
     }
 
+    override suspend fun scheduleAlarm(alarm: AlarmSchedule.Alarm, day: LocalDate) {
+        alarmService.setAlarm(alarm, day)
+    }
+
     override suspend fun dismissAlarmsForDay(day: LocalDate) {
         datastore.persistDismissedDay(day)
         datastore.removeScheduleForDay(day)
