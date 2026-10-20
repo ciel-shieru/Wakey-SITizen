@@ -80,7 +80,6 @@ class BedtimeComputerTest {
         val config = AlarmConfig(
             targetSleepDurationHours = 8,
             bedtimeReminderOffsetMinutes = 30,
-            bedtimeReminderMode = BedtimeReminderMode.Relative,
             bedtimeEnabled = true
         )
         val now = Instant.parse("2026-10-06T23:01:00Z")
@@ -98,7 +97,6 @@ class BedtimeComputerTest {
         val schedule = AlarmSchedule(LocalDate.of(2026, 10, 7), emptyList(), firstAlarm)
         val config = AlarmConfig(
             targetSleepDurationHours = 8,
-            bedtimeReminderMode = BedtimeReminderMode.Relative,
             bedtimeEnabled = true
         )
 
