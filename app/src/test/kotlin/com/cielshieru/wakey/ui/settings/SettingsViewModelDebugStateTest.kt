@@ -85,6 +85,19 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
+    fun `server status eligibility follows saved discovery mode, not unsaved selection`() = runTest {
+        assertEquals(com.cielshieru.wakey.domain.model.DiscoveryMode.DeviceCalendar, viewModel.savedServerSettings.value.discoveryMode)
+
+        viewModel.selectDiscoveryMode(com.cielshieru.wakey.domain.model.DiscoveryMode.RemoteServer)
+        viewModel.updateRemoteServerUrl("http://localhost:42748")
+        assertEquals(com.cielshieru.wakey.domain.model.DiscoveryMode.DeviceCalendar, viewModel.savedServerSettings.value.discoveryMode)
+
+        viewModel.saveConfig()
+        assertEquals(com.cielshieru.wakey.domain.model.DiscoveryMode.RemoteServer, viewModel.savedServerSettings.value.discoveryMode)
+        assertEquals("http://localhost:42748", viewModel.savedServerSettings.value.remoteServerUrl)
+    }
+
+    @Test
     fun `test alarm schedules one second after press using normal alarm data`() = runTest {
         alarmRepository.saveConfig(
             AlarmConfig(

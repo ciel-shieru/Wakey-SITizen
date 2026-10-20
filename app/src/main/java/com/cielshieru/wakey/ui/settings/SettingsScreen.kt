@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
@@ -24,6 +25,7 @@ import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 private fun ValidationSupportingText(
@@ -205,11 +207,18 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val savedServerSettings by viewModel.savedServerSettings.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.configSaved.collect {
             onShowSnackbar("Settings saved")
+        }
+    }
+
+    LaunchedEffect(savedServerSettings.discoveryMode, savedServerSettings.remoteServerUrl) {
+        if (savedServerSettings.discoveryMode == DiscoveryMode.RemoteServer) {
+            viewModel.fetchServerStatus()
         }
     }
 
@@ -352,6 +361,15 @@ fun SettingsScreen(
                         supportingText = {
                             Text("URL of your SIT-ICS-Go server running wakey-sitizen plugin")
                         }
+                    )
+                }
+            }
+
+            if (savedServerSettings.discoveryMode == DiscoveryMode.RemoteServer) {
+                item {
+                    RemoteServerStatusCard(
+                        state = uiState,
+                        onRefresh = viewModel::requestServerRefresh
                     )
                 }
             }
@@ -692,6 +710,98 @@ fun SettingsScreen(
             }
         }
 
+    }
+}
+
+private fun formatServerFetchTime(value: String?): String {
+    if (value.isNullOrBlank()) return "No fetch job has run yet"
+    return runCatching {
+        Instant.parse(value)
+            .atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
+    }.getOrDefault(value)
+}
+
+private fun formatFingerprint(value: String): String =
+    value.chunked(16).joinToString(" ")
+
+@Composable
+private fun RemoteServerStatusCard(
+    state: SettingsUiState,
+    onRefresh: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Remote Server Status", style = MaterialTheme.typography.titleMedium)
+
+            if (state.serverStatusLoading) {
+                Text("Loading server status…", style = MaterialTheme.typography.bodySmall)
+            }
+            state.serverStatusError?.let { message ->
+                Text(
+                    text = "Unable to load server status: $message",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            state.serverRefreshMessage?.let { message ->
+                Text(message, style = MaterialTheme.typography.bodySmall)
+            }
+
+            val status = state.serverStatus
+            if (status != null) {
+                Text(
+                    text = "Last fetch job: ${formatServerFetchTime(status.last_fetch_job_time)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(Modifier.height(4.dp))
+                Text("ETags", style = MaterialTheme.typography.titleSmall)
+                if (status.etags.isEmpty()) {
+                    Text("No ETags reported", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    status.etags.toSortedMap().forEach { (path, etag) ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(path, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                formatFingerprint(etag),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+                Text("SHA-256 file hashes", style = MaterialTheme.typography.titleSmall)
+                if (status.sha256.isEmpty()) {
+                    Text("No file hashes reported", style = MaterialTheme.typography.bodySmall)
+                } else {
+                    status.sha256.toSortedMap().forEach { (filename, hash) ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(filename, style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                formatFingerprint(hash),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = onRefresh,
+                enabled = !state.serverRefreshInProgress
+            ) {
+                Text(if (state.serverRefreshInProgress) "Scheduling refresh…" else "Fetch now")
+            }
+        }
     }
 }
 
