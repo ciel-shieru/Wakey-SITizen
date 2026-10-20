@@ -120,8 +120,7 @@ class SystemCalendarSource(
         const val COL_TITLE = 0
         const val COL_DTSTART = 1
         const val COL_DTEND = 2
-        const val COL_LOCATION = 3
-        const val COL_ALL_DAY = 4
-        const val COL_CALENDAR_ID = 5
+        const val COL_ALL_DAY = 3
+        const val COL_CALENDAR_ID = 4
     }
 }
