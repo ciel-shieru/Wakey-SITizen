@@ -23,6 +23,7 @@ import com.cielshieru.wakey.data.store.DeviceCalendarTimetableStore.saveDeviceCa
 import com.cielshieru.wakey.data.store.TimetableStore.saveTimetable
 import com.cielshieru.wakey.data.store.TimetableStore.timetableFlow
 import com.cielshieru.wakey.domain.AdjustForExternalEvents
+import com.cielshieru.wakey.domain.DeviceCalendarEventMapper
 import com.cielshieru.wakey.domain.AlarmComputer
 import com.cielshieru.wakey.domain.BedtimeComputer
 import com.cielshieru.wakey.domain.DebugLogger
@@ -309,23 +310,16 @@ class SyncWorker @AssistedInject constructor(
             DiscoveryMode.DeviceCalendar -> {
                 val today = targetDateOverride ?: now.atZone(zone).toLocalDate()
                 val daysToFetch = 7
-                (0 until daysToFetch).flatMap { offset ->
+                val externalEvents = (0 until daysToFetch).flatMap { offset ->
                     calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), config.selectedCalendarIds)
+                }.filterNot { external ->
+                    external.title.startsWith("brightspace-", ignoreCase = true)
                 }
-                    .filterNot { external ->
-                        external.title.startsWith("brightspace-", ignoreCase = true)
-                    }
-                    .map { external ->
-                    TimetableEvent(
-                        courseCode = "cal-${external.title.hashCode().toString(16)}",
-                        title = external.title,
-                        summary = external.title,
-                        dtstart = external.dtstart,
-                        dtend = external.dtend,
-                        location = "",
-                        eventType = EventKind.CAMPUS
-                    )
-                }
+                DeviceCalendarEventMapper.map(
+                    externalEvents,
+                    config.onlineCalendarId,
+                    config.campusCalendarId
+                )
             }
         }
 

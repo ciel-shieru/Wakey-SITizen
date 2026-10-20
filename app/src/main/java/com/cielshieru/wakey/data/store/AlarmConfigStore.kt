@@ -27,6 +27,8 @@ object AlarmConfigStore {
     private val REMOTE_SERVER_URL = stringPreferencesKey("remote_server_url")
     private val DISCOVERY_MODE = stringPreferencesKey("discovery_mode")
     private val SELECTED_CALENDAR_IDS = stringPreferencesKey("selected_calendar_ids")
+    private val ONLINE_CALENDAR_ID = stringPreferencesKey("online_calendar_id")
+    private val CAMPUS_CALENDAR_ID = stringPreferencesKey("campus_calendar_id")
     private val EXTERNAL_EVENT_CALENDAR_IDS = stringPreferencesKey("external_event_calendar_ids")
     private val RINGTONE_PLAYLIST = stringPreferencesKey("ringtone_playlist")
 
@@ -36,6 +38,19 @@ object AlarmConfigStore {
     }
 
     fun Flow<Preferences>.configFlow(): Flow<AlarmConfig> = map { prefs ->
+        val legacyCalendarIds = prefs[SELECTED_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
+            ?: emptyList()
+        val onlineCalendarId = if (prefs.contains(ONLINE_CALENDAR_ID)) {
+            prefs[ONLINE_CALENDAR_ID]?.takeIf { it.isNotBlank() }
+        } else {
+            legacyCalendarIds.getOrNull(0)
+        }
+        val campusCalendarId = if (prefs.contains(CAMPUS_CALENDAR_ID)) {
+            prefs[CAMPUS_CALENDAR_ID]?.takeIf { it.isNotBlank() }
+        } else {
+            legacyCalendarIds.getOrNull(1)
+        }
+
         AlarmConfig(
             onlineOffsetMinutes = prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET,
             campusOffsetMinutes = prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET,
@@ -47,8 +62,9 @@ object AlarmConfigStore {
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
             externalEventCalendarIds = prefs[EXTERNAL_EVENT_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
                 ?: emptyList(),
-            selectedCalendarIds = prefs[SELECTED_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
-                ?: emptyList(),
+            selectedCalendarIds = legacyCalendarIds,
+            onlineCalendarId = onlineCalendarId,
+            campusCalendarId = campusCalendarId,
             bedtimeEnabled = prefs[BEDTIME_ENABLED] ?: false,
             remoteServerUrl = prefs[REMOTE_SERVER_LEGACY] ?: prefs[REMOTE_SERVER_URL] ?: AlarmConfig.DEFAULT_REMOTE_SERVER_URL,
             discoveryMode = parseDiscoveryMode(prefs[DISCOVERY_MODE]),
@@ -85,6 +101,8 @@ object AlarmConfigStore {
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[EXTERNAL_EVENT_CALENDAR_IDS] = config.externalEventCalendarIds.joinToString(",")
             prefs[SELECTED_CALENDAR_IDS] = config.selectedCalendarIds.joinToString(",")
+            prefs[ONLINE_CALENDAR_ID] = config.onlineCalendarId.orEmpty()
+            prefs[CAMPUS_CALENDAR_ID] = config.campusCalendarId.orEmpty()
             prefs[BEDTIME_ENABLED] = config.bedtimeEnabled
             prefs[REMOTE_SERVER_URL] = config.remoteServerUrl
             prefs[DISCOVERY_MODE] = when (config.discoveryMode) {

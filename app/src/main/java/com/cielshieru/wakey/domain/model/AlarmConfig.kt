@@ -16,6 +16,8 @@ data class AlarmConfig(
     val externalEventEnabled: Boolean = false,
     val externalEventCalendarIds: List<String> = emptyList(),
     val selectedCalendarIds: List<String> = emptyList(),
+    val onlineCalendarId: String? = null,
+    val campusCalendarId: String? = null,
     val bedtimeEnabled: Boolean = false,
     val remoteServerUrl: String = DEFAULT_REMOTE_SERVER_URL,
     val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,

@@ -103,9 +103,8 @@ class SettingsViewModel @Inject constructor(
                 alarmRepository.config,
                 alarmRepository.debugConfig
             ) { config, debug ->
-                val calendarIds = config.selectedCalendarIds
-                val onlineId = calendarIds.getOrNull(0)
-                val campusId = if (calendarIds.size > 1) calendarIds[1] else null
+                val onlineId = config.onlineCalendarId
+                val campusId = config.campusCalendarId
 
                 SettingsUiState(
                     onlineOffset = config.onlineOffsetMinutes,
@@ -343,6 +342,8 @@ class SettingsViewModel @Inject constructor(
                 externalEventEnabled = state.externalEnabled,
                 externalEventCalendarIds = state.externalCalendarIds,
                 selectedCalendarIds = selectedCalendarIds,
+                onlineCalendarId = state.onlineCalendarPicker.selectedId,
+                campusCalendarId = state.campusCalendarPicker.selectedId,
                 bedtimeEnabled = state.bedtimeEnabled,
                 remoteServerUrl = state.remoteServerUrl,
                 discoveryMode = state.discoveryMode,
