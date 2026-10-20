@@ -36,6 +36,7 @@ class AlarmService(
         const val EXTRA_ALARM_INDEX = "alarm_index"
         const val EXTRA_ALARM_DAY = "alarm_day"
         const val EXTRA_RINGTONE_URI = "ringtone_uri"
+        const val EXTRA_BEDTIME_AT_MILLIS = "bedtime_at_millis"
 
         /**
          * Hard cap on alarms per day (ADR-0003). With `maxRepeats <= 20` the
@@ -109,11 +110,12 @@ class AlarmService(
      * Cancels any previously scheduled reminder first (cancel-then-set) so a
      * re-sync replaces it with the freshly computed time (ADR-0004, edge case 4).
      */
-    fun setBedtimeReminder(triggerAtMillis: Long) {
+    fun setBedtimeReminder(triggerAtMillis: Long, bedtimeAtMillis: Long = triggerAtMillis) {
         cancelBedtimeReminder()
 
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             action = ACTION_BEDTIME_REMINDER
+            putExtra(EXTRA_BEDTIME_AT_MILLIS, bedtimeAtMillis)
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
