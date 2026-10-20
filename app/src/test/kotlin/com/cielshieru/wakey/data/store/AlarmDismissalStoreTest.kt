@@ -30,7 +30,7 @@ class AlarmDismissalStoreTest {
 
     @Test
     fun `one dismissed day can be cleared without affecting other days`() = runTest {
-        val file = File("/tmp/test_alarm_dismissal_clear.preferences_pb")
+        val file = File("/tmp/test_alarm_dismissal_clear_" + java.util.UUID.randomUUID() + ".preferences_pb")
         val store = PreferenceDataStoreFactory.create(produceFile = { file })
         val today = LocalDate.of(2026, 10, 21)
         val tomorrow = today.plusDays(1)
