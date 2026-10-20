@@ -28,9 +28,9 @@ ADR-0003 established the alarm scheduling policy for wake-up alarms. Students al
 
 ### Derivation (computed during each sync)
 
-1. Get the first wake-up alarm time for the next day (`firstAlarmTime`). If no alarms are set for any future day, skip bedtime reminder computation.
-2. Compute `targetBedtime = firstAlarmTime - targetSleepDuration`.
-3. Compute `bedtimeReminderTime = targetBedtime - bedtimeReminderOffset`.
+1. Get the earliest first-alarm time that is still in the future (`firstAlarmTime`). If no upcoming alarm exists, skip bedtime reminder computation.
+2. Compute the actual `targetBedtime = firstAlarmTime - targetSleepDuration`.
+3. In relative mode, compute `bedtimeReminderTime = targetBedtime - bedtimeReminderOffset`. The offset affects notification delivery only; the Home screen and notification show `targetBedtime`.
 
 ### Delivery
 
@@ -53,8 +53,8 @@ The bedtime reminder is delivered as a notification:
 
 | Setting | Default | Range |
 |---------|---------|-------|
-| targetSleepDuration | 8 hours | 4–12 hours |
-| bedtimeReminderOffset | 30 minutes | 5–60 minutes |
+| targetSleepDuration | 8 hours | 1–24 hours |
+| bedtimeReminderOffset | 30 minutes | 5–1440 minutes |
 
 ## Rationale
 
