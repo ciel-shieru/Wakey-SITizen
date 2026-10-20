@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import java.text.DateFormat
@@ -452,24 +453,47 @@ fun SettingsScreen(
 
             if (uiState.bedtimeEnabled) {
                 item {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = uiState.bedtimeReminderMode == BedtimeReminderMode.Relative,
+                            onClick = { viewModel.selectBedtimeReminderMode(BedtimeReminderMode.Relative) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        ) { Text("Relative") }
+                        SegmentedButton(
+                            selected = uiState.bedtimeReminderMode == BedtimeReminderMode.Absolute,
+                            onClick = { viewModel.selectBedtimeReminderMode(BedtimeReminderMode.Absolute) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        ) { Text("Absolute") }
+                    }
+
+                    if (uiState.bedtimeReminderMode == BedtimeReminderMode.Relative) {
+                        OutlinedTextField(
+                            value = uiState.bedtimeOffset.toString(),
+                            onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
+                            label = { Text("Reminder before bedtime (minutes, 5-1440)") },
+                            singleLine = true,
+                            supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 1440, "Bedtime offset") }
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = uiState.bedtimeAbsoluteTime,
+                            onValueChange = viewModel::updateBedtimeAbsoluteTime,
+                            label = { Text("Notify at (24-hour HH:mm)") },
+                            placeholder = { Text("19:00") },
+                            singleLine = true,
+                            supportingText = { Text("Notify at this time on the evening of the calculated bedtime.") }
+                        )
+                    }
+
                     OutlinedTextField(
                         value = uiState.sleepDuration.toString(),
                         onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
-                        label = { Text("Target sleep (hours, 4-12)") },
+                        label = { Text("Target sleep (hours, 1-24)") },
                         singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 4, 12, "Target sleep") }
+                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 1, 24, "Target sleep") }
                     )
                 }
 
-                item {
-                    OutlinedTextField(
-                        value = uiState.bedtimeOffset.toString(),
-                        onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
-                        label = { Text("Bedtime reminder offset (minutes, 5-60)") },
-                        singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 60, "Bedtime offset") }
-                    )
-                }
             }
 
             if (uiState.bedtimeEnabled && !postNotificationsGranted) {

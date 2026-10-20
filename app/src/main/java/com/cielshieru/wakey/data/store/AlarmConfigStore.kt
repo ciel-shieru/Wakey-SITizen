@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,8 @@ object AlarmConfigStore {
     private val MAX_REPEATS = intPreferencesKey("max_repeats")
     private val SLEEP_DURATION = intPreferencesKey("sleep_duration_hours")
     private val BEDTIME_OFFSET = intPreferencesKey("bedtime_offset_minutes")
+    private val BEDTIME_REMINDER_MODE = stringPreferencesKey("bedtime_reminder_mode")
+    private val BEDTIME_ABSOLUTE_TIME = stringPreferencesKey("bedtime_absolute_time")
     private val BUFFER_MINUTES = intPreferencesKey("buffer_minutes")
     private val EXTERNAL_EVENTS_ENABLED = booleanPreferencesKey("external_events_enabled")
     private val BEDTIME_ENABLED = booleanPreferencesKey("bedtime_enabled")
@@ -58,6 +61,8 @@ object AlarmConfigStore {
             maxRepeats = prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS,
             targetSleepDurationHours = prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION,
             bedtimeReminderOffsetMinutes = prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET,
+            bedtimeReminderMode = if (prefs[BEDTIME_REMINDER_MODE] == "relative") BedtimeReminderMode.Relative else BedtimeReminderMode.Absolute,
+            bedtimeReminderAbsoluteTime = prefs[BEDTIME_ABSOLUTE_TIME]?.let { runCatching { java.time.LocalTime.parse(it) }.getOrNull() } ?: AlarmConfig.DEFAULT_BEDTIME_ABSOLUTE_TIME,
             externalEventBufferMinutes = prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES,
             externalEventEnabled = prefs[EXTERNAL_EVENTS_ENABLED] ?: false,
             externalEventCalendarIds = prefs[EXTERNAL_EVENT_CALENDAR_IDS]?.split(",")?.filter { it.isNotBlank() }
@@ -97,6 +102,11 @@ object AlarmConfigStore {
             prefs[MAX_REPEATS] = config.maxRepeats
             prefs[SLEEP_DURATION] = config.targetSleepDurationHours
             prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
+            prefs[BEDTIME_REMINDER_MODE] = when (config.bedtimeReminderMode) {
+                BedtimeReminderMode.Relative -> "relative"
+                BedtimeReminderMode.Absolute -> "absolute"
+            }
+            prefs[BEDTIME_ABSOLUTE_TIME] = config.bedtimeReminderAbsoluteTime.toString()
             prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[EXTERNAL_EVENT_CALENDAR_IDS] = config.externalEventCalendarIds.joinToString(",")

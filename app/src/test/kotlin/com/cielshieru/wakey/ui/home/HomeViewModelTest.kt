@@ -2,6 +2,7 @@ package com.cielshieru.wakey.ui.home
 
 import com.cielshieru.wakey.domain.DebugLogger
 import com.cielshieru.wakey.domain.model.AlarmSchedule
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.OverrideType
 import com.cielshieru.wakey.domain.port.SyncStatus
 import com.cielshieru.wakey.fakes.FakeAlarmRepository
@@ -355,7 +356,8 @@ class HomeViewModelTest {
             com.cielshieru.wakey.domain.model.AlarmConfig(
                 bedtimeEnabled = true,
                 targetSleepDurationHours = 8,
-                bedtimeReminderOffsetMinutes = 30
+                bedtimeReminderOffsetMinutes = 30,
+                bedtimeReminderMode = BedtimeReminderMode.Relative
             )
         )
 
