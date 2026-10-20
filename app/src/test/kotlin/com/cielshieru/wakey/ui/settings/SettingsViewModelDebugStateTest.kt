@@ -98,6 +98,15 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
+    fun `saving settings schedules periodic and immediate sync`() = runTest {
+        viewModel.saveConfig()
+
+        assertTrue(syncUseCase.cancelCalled)
+        assertTrue(syncUseCase.scheduleCalled)
+        assertTrue(syncUseCase.syncCalled)
+    }
+
+    @Test
     fun `test alarm schedules one second after press using normal alarm data`() = runTest {
         alarmRepository.saveConfig(
             AlarmConfig(
