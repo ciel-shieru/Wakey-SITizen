@@ -159,7 +159,7 @@ class SyncWorker @AssistedInject constructor(
             val adjustedSchedules = if (config.externalEventEnabled) {
                 schedules.map { schedule ->
                     val externalEvents =
-                        calendarEventSource.getEventsForDate(schedule.day, config.selectedCalendarIds)
+                        calendarEventSource.getEventsForDate(schedule.day, config.externalEventCalendarIds)
                     AdjustForExternalEvents.adjust(
                         schedule,
                         externalEvents,

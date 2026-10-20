@@ -217,7 +217,7 @@ fun SettingsScreen(
         .firstOrNull { it.permission == "POST_NOTIFICATIONS" }
         ?.status == PermissionStatus.Granted
 
-    LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode) {
+    LaunchedEffect(uiState.onlineCalendarPicker.permissionGranted, uiState.discoveryMode, uiState.externalEnabled) {
         val calendarsNeedLoading =
             uiState.onlineCalendarPicker.calendars.isEmpty() ||
                 uiState.campusCalendarPicker.calendars.isEmpty() ||
@@ -227,7 +227,7 @@ fun SettingsScreen(
                 uiState.campusCalendarPicker.isLoading ||
                 uiState.externalEventCalendarPicker.isLoading
 
-        if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar &&
+        if ((uiState.discoveryMode == DiscoveryMode.DeviceCalendar || uiState.externalEnabled) &&
             uiState.onlineCalendarPicker.permissionGranted &&
             calendarsNeedLoading &&
             !anyPickerLoading
@@ -529,27 +529,24 @@ fun SettingsScreen(
                     )
                 }
 
-                if (uiState.discoveryMode == DiscoveryMode.DeviceCalendar) {
-                    item {
-                        MultiSelectCalendarPicker(
-                            state = uiState.externalEventCalendarPicker,
-                            onCalendarToggle = viewModel::toggleExternalEventCalendar,
-                            label = "External Event Calendars"
+                item {
+                    MultiSelectCalendarPicker(
+                        state = uiState.externalEventCalendarPicker,
+                        onCalendarToggle = viewModel::toggleExternalEventCalendar,
+                        label = "External Event Calendars"
+                    )
+                }
+
+                item {
+                    if (uiState.externalEventCalendarPicker.permissionGranted &&
+                        uiState.externalEventCalendarPicker.calendars.isEmpty() &&
+                        !uiState.externalEventCalendarPicker.isLoading
+                    ) {
+                        Text(
+                            "No readable calendars found on this device",
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
-
-                    item {
-                        if (uiState.externalEventCalendarPicker.permissionGranted &&
-                            uiState.externalEventCalendarPicker.calendars.isEmpty() &&
-                            !uiState.externalEventCalendarPicker.isLoading
-                        ) {
-                            Text(
-                                "No readable calendars found on this device",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    }
-
                 }
             }
 
