@@ -806,6 +806,7 @@ private fun RemoteServerStatusCard(
     }
 }
 
+@Composable
 private fun DiscoveryModeSegmentedButton(
     selectedMode: DiscoveryMode,
     onModeSelected: (DiscoveryMode) -> Unit
