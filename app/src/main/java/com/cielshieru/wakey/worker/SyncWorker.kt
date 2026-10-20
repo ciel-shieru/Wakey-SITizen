@@ -162,8 +162,16 @@ class SyncWorker @AssistedInject constructor(
             // Step 4: adjust for external events (ADR-0005), when enabled.
             val adjustedSchedules = if (config.externalEventEnabled) {
                 schedules.map { schedule ->
-                    val externalEvents =
-                        calendarEventSource.getEventsForDate(schedule.day, config.externalEventCalendarIds)
+                    // Include the previous calendar day because the supported buffer
+                    // can span midnight (up to 12 hours). Deduplicate instances that
+                    // overlap both date queries.
+                    val externalEvents = listOf(schedule.day.minusDays(1), schedule.day)
+                        .flatMap { date ->
+                            calendarEventSource.getEventsForDate(date, config.externalEventCalendarIds)
+                        }
+                        .distinctBy { event ->
+                            listOf(event.calendarId, event.title, event.dtstart, event.dtend)
+                        }
                     AdjustForExternalEvents.adjust(
                         schedule,
                         externalEvents,
