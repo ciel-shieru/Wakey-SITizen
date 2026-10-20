@@ -2,6 +2,8 @@ package com.cielshieru.wakey.ui.ringtone
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.media.RingtoneManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -39,11 +41,34 @@ fun RingtonePickerScreen(
     val event by viewModel.event.collectAsState()
     val listState = rememberLazyListState()
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // ACTION_OPEN_DOCUMENT grants a persistable URI permission so user-picked
+    // tracks remain playable after the app process is recreated or the device reboots.
     val contentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.toString()?.let { uriString ->
-            viewModel.addRingtone(uriString)
+        uri?.let {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            viewModel.addRingtone(it.toString())
+        }
+    }
+
+    // Use Android's native alarm-ringtone picker for ringtones already installed
+    // by the OS. Its returned URI goes into the same playlist as custom tracks.
+    val systemAlarmRingtoneLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            result.data
+                ?.getParcelableExtra<android.net.Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                ?.toString()
+                ?.let(viewModel::addRingtone)
         }
     }
 
@@ -128,19 +153,42 @@ fun RingtonePickerScreen(
 
             HorizontalDivider()
 
-            Button(
-                onClick = { contentLauncher.launch("audio/*") },
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                enabled = uiState.ringtoneUris.size < RingtonePlaylist.MAX_RINGTONES
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    if (uiState.ringtoneUris.size >= RingtonePlaylist.MAX_RINGTONES)
-                        "Maximum ringtones reached (${RingtonePlaylist.MAX_RINGTONES})"
-                    else
-                        "Add Ringtone"
-                )
+                Button(
+                    onClick = { contentLauncher.launch(arrayOf("audio/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.ringtoneUris.size < RingtonePlaylist.MAX_RINGTONES
+                ) {
+                    Text("Add Custom Music Track")
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, false)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                        }
+                        systemAlarmRingtoneLauncher.launch(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.ringtoneUris.size < RingtonePlaylist.MAX_RINGTONES
+                ) {
+                    Text("Add Device Alarm Ringtone")
+                }
+
+                if (uiState.ringtoneUris.size >= RingtonePlaylist.MAX_RINGTONES) {
+                    Text(
+                        "Maximum ringtones reached (${RingtonePlaylist.MAX_RINGTONES})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
 
             Text(

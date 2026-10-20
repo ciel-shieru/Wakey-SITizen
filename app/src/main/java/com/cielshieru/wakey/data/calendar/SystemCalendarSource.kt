@@ -91,7 +91,8 @@ class SystemCalendarSource(
                 CalendarContract.Events.DTSTART,
                 CalendarContract.Events.DTEND,
                 CalendarContract.Events.EVENT_LOCATION,
-                CalendarContract.Events.ALL_DAY
+                CalendarContract.Events.ALL_DAY,
+                CalendarContract.Events.CALENDAR_ID
             ),
             selection,
             selectionArgs,
@@ -110,7 +111,8 @@ class SystemCalendarSource(
                     ExternalEvent(
                         title = c.getString(COL_TITLE).orEmpty(),
                         dtstart = Instant.ofEpochMilli(startMillis).atZone(zone).toLocalDateTime(),
-                        dtend = Instant.ofEpochMilli(endMillis).atZone(zone).toLocalDateTime()
+                        dtend = Instant.ofEpochMilli(endMillis).atZone(zone).toLocalDateTime(),
+                        calendarId = c.getLong(COL_CALENDAR_ID).toString()
                     )
                 )
             }
@@ -124,5 +126,6 @@ class SystemCalendarSource(
         const val COL_DTEND = 2
         const val COL_LOCATION = 3
         const val COL_ALL_DAY = 4
+        const val COL_CALENDAR_ID = 5
     }
 }

@@ -41,7 +41,8 @@ data class HomeUiState(
     val overrideText: String? = null,
     val isSyncing: Boolean = false,
     val staleDataWarning: String? = null,
-    val scheduledAlarms: List<ScheduledAlarm> = emptyList()
+    val scheduledAlarms: List<ScheduledAlarm> = emptyList(),
+    val currentDay: LocalDate = LocalDate.now()
 ) {
     companion object {
         internal val TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a")
@@ -50,6 +51,8 @@ data class HomeUiState(
     data class ScheduledAlarm(
         val requestCode: Int,
         val formattedTime: String,
+        val day: LocalDate = LocalDate.MIN,
+        val ringtoneUri: String?,
         val isUpcoming: Boolean
     )
 
@@ -231,6 +234,8 @@ class HomeViewModel @Inject constructor(
                                     HomeUiState.ScheduledAlarm(
                                         requestCode = alarm.requestCode,
                                         formattedTime = formattedTime,
+                                        day = schedule.day,
+                                        ringtoneUri = alarm.ringtoneUri,
                                         isUpcoming = alarm.triggerAt.isAfter(now)
                                     )
                                 }
@@ -243,7 +248,8 @@ class HomeViewModel @Inject constructor(
                         bedtimeText = bedtimeText,
                         nextEvent = nextEvent,
                         overrideText = overrideText,
-                        scheduledAlarms = scheduledAlarms
+                        scheduledAlarms = scheduledAlarms,
+                        currentDay = clock.now().atZone(zone).toLocalDate()
                     )
                 }
         }
@@ -304,6 +310,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             alarmRepository.clearAllOverrides()
             syncOperations.syncImmediately()
+        }
+    }
+
+    fun dismissRemainingAlarmsForToday() {
+        val today = clock.now().atZone(zoneProvider.zone).toLocalDate()
+        viewModelScope.launch {
+            alarmRepository.dismissAlarmsForDay(today)
         }
     }
 

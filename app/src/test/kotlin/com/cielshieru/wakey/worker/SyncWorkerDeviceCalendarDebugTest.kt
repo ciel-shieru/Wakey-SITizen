@@ -1,6 +1,7 @@
 package com.cielshieru.wakey.worker
 
 import com.cielshieru.wakey.domain.AlarmComputer
+import com.cielshieru.wakey.domain.DeviceCalendarEventMapper
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.EventKind
@@ -59,32 +60,26 @@ class SyncWorkerDeviceCalendarDebugTest {
         now: Instant,
         zone: java.time.ZoneId,
         targetDateOverride: LocalDate? = null,
-        selectedCalendarIds: List<String> = emptyList()
+        selectedCalendarIds: List<String> = emptyList(),
+        onlineCalendarId: String? = null,
+        campusCalendarId: String? = null
     ): List<TimetableEvent> {
         val anchorDate = targetDateOverride ?: now.atZone(zone).toLocalDate()
         val daysToFetch = 7
-        return (0 until daysToFetch).flatMap { offset ->
+        val externalEvents = (0 until daysToFetch).flatMap { offset ->
             calendarEventSource.getEventsForDate(
                 anchorDate.plusDays(offset.toLong()),
                 selectedCalendarIds
             )
+        }.filterNot { external ->
+            external.title.startsWith("brightspace-", ignoreCase = true)
         }
-            .filterNot { external ->
-                external.title.startsWith("brightspace-", ignoreCase = true)
-            }
-            .map { external ->
-                TimetableEvent(
-                    courseCode = "cal-${external.title.hashCode().toString(16)}",
-                    title = external.title,
-                    summary = external.title,
-                    dtstart = external.dtstart,
-                    dtend = external.dtend,
-                    location = "",
-                    eventType = EventKind.CAMPUS
-                )
-            }
+        return DeviceCalendarEventMapper.map(
+            externalEvents,
+            onlineCalendarId,
+            campusCalendarId
+        )
     }
-
     /**
      * Full pipeline: fetch events -> compute alarm schedules.
      * This mirrors what SyncWorker.doWork() does for DeviceCalendar mode.
@@ -97,7 +92,13 @@ class SyncWorkerDeviceCalendarDebugTest {
         config: AlarmConfig = defaultConfig
     ): List<AlarmSchedule> {
         val events = fetchDeviceCalendarEvents(
-            calendarEventSource, now, zone, targetDateOverride, config.selectedCalendarIds
+            calendarEventSource,
+            now,
+            zone,
+            targetDateOverride,
+            config.selectedCalendarIds,
+            config.onlineCalendarId,
+            config.campusCalendarId
         )
         val filteredEvents = events.filterNot {
             it.courseCode.startsWith("brightspace-", ignoreCase = true)
@@ -410,28 +411,30 @@ class SyncWorkerDeviceCalendarDebugTest {
                 ExternalEvent(
                     title = "Online Lecture",
                     dtstart = LocalDateTime.of(2026, 10, 14, 10, 0),
-                    dtend = LocalDateTime.of(2026, 10, 14, 11, 0)
+                    dtend = LocalDateTime.of(2026, 10, 14, 11, 0),
+                    calendarId = "online-calendar"
                 )
             )
         ))
 
         val now = Instant.parse("2026-10-10T12:00:00Z")
+        val config = defaultConfig.copy(
+            onlineCalendarId = "online-calendar",
+            selectedCalendarIds = listOf("online-calendar")
+        )
 
-        // Note: DeviceCalendar events are always mapped to CAMPUS kind,
-        // so the CAMPUS offset (90min) is used, not ONLINE offset.
-        // Event at 10:00, CAMPUS offset 90min -> first alarm at 08:30
         val schedules = runFullPipeline(
             calendarEventSource, now, zone,
-            targetDateOverride = targetDate
+            targetDateOverride = targetDate,
+            config = config
         )
 
         assertEquals("Should have 1 schedule", 1, schedules.size)
         assertEquals("Schedule should be for target date", targetDate, schedules[0].day)
 
-        // CAMPUS offset is 90 minutes (DeviceCalendar events are always CAMPUS),
-        // event at 10:00 -> first alarm at 08:30
-        val expectedFirstAlarm = Instant.parse("2026-10-14T08:30:00Z")
-        assertEquals("First alarm should be at 08:30 (90min before CAMPUS event)",
+        // Online offset is 60 minutes, so the 10:00 event should ring at 09:00.
+        val expectedFirstAlarm = Instant.parse("2026-10-14T09:00:00Z")
+        assertEquals("First alarm should be at 09:00 (60min before online event)",
             expectedFirstAlarm, schedules[0].firstAlarmTime!!)
     }
 

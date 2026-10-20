@@ -4,13 +4,22 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.lifecycle.viewModelScope
+import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.PermissionChecker
 import com.cielshieru.wakey.fakes.FakeAlarmRepository
 import com.cielshieru.wakey.fakes.FakeSyncUseCase
+import com.cielshieru.wakey.fakes.FakeClock
+import com.cielshieru.wakey.fakes.FakeZoneProvider
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -32,8 +41,11 @@ class SettingsViewModelDebugStateTest {
     private lateinit var alarmRepository: FakeAlarmRepository
     private lateinit var permissionChecker: PermissionChecker
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var testFile: File
     private lateinit var syncUseCase: FakeSyncUseCase
     private lateinit var viewModel: SettingsViewModel
+    private lateinit var clock: FakeClock
+    private lateinit var zoneProvider: FakeZoneProvider
 
     @Before
     fun setUp() {
@@ -47,24 +59,53 @@ class SettingsViewModelDebugStateTest {
                 emptyList()
         }
 
-        val testFile = File("/tmp/test_debug_datastore.preferences_pb")
+        testFile = File("/tmp/test_debug_datastore_${System.nanoTime()}.preferences_pb")
         testFile.delete()
         dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
 
         syncUseCase = FakeSyncUseCase()
+        clock = FakeClock().apply { set(Instant.parse("2026-10-20T05:46:40Z")) }
+        zoneProvider = FakeZoneProvider().apply { zone = ZoneId.of("Asia/Singapore") }
 
         viewModel = SettingsViewModel(
             alarmRepository = alarmRepository,
             permissionChecker = permissionChecker,
             datastore = dataStore,
-            syncUseCase = syncUseCase
+            syncUseCase = syncUseCase,
+            clock = clock,
+            zoneProvider = zoneProvider
         )
     }
 
     @After
     fun tearDown() {
+        viewModel.viewModelScope.cancel()
         Dispatchers.resetMain()
-        File("/tmp/test_debug_datastore.preferences_pb").delete()
+        testFile.delete()
+    }
+
+    @Test
+    fun `test alarm schedules one second after press using normal alarm data`() = runTest {
+        alarmRepository.saveConfig(
+            AlarmConfig(
+                ringtonePlaylist = RingtonePlaylist(listOf("content://alarm-tone"))
+            )
+        )
+        viewModel.toggleDebugMode(true)
+
+        viewModel.testAlarmNow()
+
+        val (alarm, day) = alarmRepository.scheduledAlarms.single()
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), day)
+        assertEquals(com.cielshieru.wakey.android.AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE, alarm.requestCode)
+        assertEquals("content://alarm-tone", alarm.ringtoneUri)
+    }
+
+    @Test
+    fun `test alarm does nothing when debug mode is disabled`() = runTest {
+        viewModel.testAlarmNow()
+        assertEquals(0, alarmRepository.scheduledAlarms.size)
     }
 
     @Test

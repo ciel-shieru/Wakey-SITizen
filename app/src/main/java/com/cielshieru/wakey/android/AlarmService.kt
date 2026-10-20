@@ -32,6 +32,7 @@ class AlarmService(
     companion object {
         const val ACTION_WAKE_UP_ALARM = "com.cielshieru.wakey.ACTION_WAKE_UP_ALARM"
         const val ACTION_BEDTIME_REMINDER = "com.cielshieru.wakey.ACTION_BEDTIME_REMINDER"
+        const val ACTION_DISMISS_REMAINING_ALARMS = "com.cielshieru.wakey.ACTION_DISMISS_REMAINING_ALARMS"
         const val EXTRA_ALARM_INDEX = "alarm_index"
         const val EXTRA_ALARM_DAY = "alarm_day"
         const val EXTRA_RINGTONE_URI = "ringtone_uri"
@@ -48,6 +49,28 @@ class AlarmService(
          * current years) so 99_999 can never collide with them.
          */
         const val BEDTIME_REQUEST_CODE = 99_999
+        const val DEBUG_TEST_ALARM_REQUEST_CODE = 99_998
+
+        /**
+         * Cancel the ordinary AlarmManager PendingIntents for one day without
+         * requiring an injected AlarmService instance (used by notification actions).
+         */
+        fun cancelScheduledAlarmsForDay(context: Context, day: LocalDate) {
+            val manager = context.getSystemService(AlarmManager::class.java)
+            for (index in 0 until MAX_ALARMS_PER_DAY) {
+                val intent = Intent(context, AlarmReceiver::class.java).apply {
+                    action = ACTION_WAKE_UP_ALARM
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    AlarmSchedule.Alarm.computeRequestCode(day, index),
+                    intent,
+                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                ) ?: continue
+                manager.cancel(pendingIntent)
+                pendingIntent.cancel()
+            }
+        }
     }
 
     /**
@@ -114,13 +137,12 @@ class AlarmService(
      * `day.hashCode() * 1000 + index` request codes (ADR-0003, idempotent
      * reconciliation).
      */
-    fun cancelAlarmsForDay(day: LocalDate) {
-        for (index in 0 until MAX_ALARMS_PER_DAY) {
-            cancelPending(
-                AlarmSchedule.Alarm.computeRequestCode(day, index),
-                ACTION_WAKE_UP_ALARM
-            )
-        }
+    fun cancelAlarmsForDay(day: LocalDate) = cancelScheduledAlarmsForDay(context, day)
+
+    /** Stops any current looping playback and removes its notification. */
+    fun stopCurrentAlarm() {
+        context.stopService(Intent(context, AlarmPlaybackService::class.java))
+        NotificationService.cancelAlarmNotification(context)
     }
 
     /** Cancels the pending bedtime reminder, if any. */

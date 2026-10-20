@@ -15,6 +15,14 @@ open class RingtoneNameResolver(
     open fun resolveName(uri: Uri): String {
         return try {
             val ctx = context ?: return uri.lastPathSegment ?: "Unknown"
+            // RingtoneManager resolves both system-preloaded alarm tones and
+            // media-backed custom tracks to user-facing titles. The cursor lookup
+            // below remains a fallback for providers that do not resolve directly.
+            val systemTitle = runCatching {
+                RingtoneManager.getRingtone(ctx, uri)?.getTitle(ctx)
+            }.getOrNull()
+            if (!systemTitle.isNullOrBlank()) return systemTitle
+
             val ringtoneManager = RingtoneManager(ctx)
             val cursor = ringtoneManager.cursor
             var name = "Unknown"
