@@ -250,21 +250,24 @@ class SyncWorker @AssistedInject constructor(
             }
 
             val bedtime = BedtimeComputer.compute(finalSchedules, config, now, zone)
+            val shouldScheduleBedtimeReminder = bedtime?.triggerAt?.isAfter(now) == true
             if (debugConfig.debugModeEnabled) {
-                if (bedtime != null) {
+                if (bedtime == null) {
+                    debugLogger.logBedtimeSkipped("no upcoming target bedtime")
+                } else if (shouldScheduleBedtimeReminder) {
                     debugLogger.logBedtimeSet(bedtime)
                 } else {
-                    debugLogger.logBedtimeSkipped("null result or already passed")
+                    debugLogger.logBedtimeSkipped("reminder trigger has already passed")
                 }
             }
-            if (bedtime != null) {
+            if (bedtime != null && shouldScheduleBedtimeReminder) {
                 alarmService.setBedtimeReminder(
                     bedtime.triggerAt.toEpochMilli(),
                     bedtime.bedtimeAt.toEpochMilli()
                 )
             } else {
-                // No upcoming alarm (or reminder already passed) — make sure a
-                // previously scheduled reminder does not fire stale.
+                // Keep past reminders from firing immediately, even when the target
+                // bedtime remains upcoming and can still be shown on the Home screen.
                 alarmService.cancelBedtimeReminder()
             }
 
