@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -186,13 +187,17 @@ class SettingsViewModel @Inject constructor(
 
     fun saveDebugConfig() {
         viewModelScope.launch {
-            val state = _uiState.value
-            val config = DebugConfig(
+            persistDebugConfig(_uiState.value)
+        }
+    }
+
+    private suspend fun persistDebugConfig(state: SettingsUiState) {
+        alarmRepository.saveDebugConfig(
+            DebugConfig(
                 debugModeEnabled = state.debugModeEnabled,
                 targetDateMillis = state.targetDateMillis
             )
-            alarmRepository.saveDebugConfig(config)
-        }
+        )
     }
 
     fun selectDiscoveryMode(mode: DiscoveryMode) {
@@ -321,6 +326,7 @@ class SettingsViewModel @Inject constructor(
     fun saveConfig() {
         viewModelScope.launch {
             val state = _uiState.value
+            val currentConfig = alarmRepository.config.first()
             val selectedCalendarIds = buildList {
                 state.onlineCalendarPicker.selectedId?.let { add(it) }
                 state.campusCalendarPicker.selectedId?.let { add(it) }
@@ -339,10 +345,11 @@ class SettingsViewModel @Inject constructor(
                 selectedCalendarIds = selectedCalendarIds,
                 bedtimeEnabled = state.bedtimeEnabled,
                 remoteServerUrl = state.remoteServerUrl,
-                discoveryMode = state.discoveryMode
+                discoveryMode = state.discoveryMode,
+                ringtonePlaylist = currentConfig.ringtonePlaylist
             )
             alarmRepository.saveConfig(config)
-            saveDebugConfig()
+            persistDebugConfig(state)
 
             syncUseCase.cancelSync()
             syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.KEEP)

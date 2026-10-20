@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import com.cielshieru.wakey.domain.port.AlarmRepository
@@ -11,6 +12,7 @@ import com.cielshieru.wakey.domain.port.PermissionChecker
 import com.cielshieru.wakey.fakes.FakeAlarmRepository
 import com.cielshieru.wakey.fakes.FakeSyncUseCase
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -32,6 +34,7 @@ class SettingsViewModelDebugStateTest {
     private lateinit var alarmRepository: FakeAlarmRepository
     private lateinit var permissionChecker: PermissionChecker
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var testFile: File
     private lateinit var syncUseCase: FakeSyncUseCase
     private lateinit var viewModel: SettingsViewModel
 
@@ -47,7 +50,7 @@ class SettingsViewModelDebugStateTest {
                 emptyList()
         }
 
-        val testFile = File("/tmp/test_debug_datastore.preferences_pb")
+        testFile = File("/tmp/test_debug_datastore_${System.nanoTime()}.preferences_pb")
         testFile.delete()
         dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
 
@@ -63,8 +66,9 @@ class SettingsViewModelDebugStateTest {
 
     @After
     fun tearDown() {
+        viewModel.viewModelScope.cancel()
         Dispatchers.resetMain()
-        File("/tmp/test_debug_datastore.preferences_pb").delete()
+        testFile.delete()
     }
 
     @Test
