@@ -5,6 +5,7 @@ import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import com.cielshieru.wakey.domain.port.AlarmRepository
+import java.time.LocalDate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,9 +71,15 @@ class FakeAlarmRepository : AlarmRepository {
     }
 
     val cancelledRequestCodes = mutableListOf<Int>()
+    val dismissedDays = mutableListOf<LocalDate>()
 
     override suspend fun cancelAlarm(requestCode: Int) {
         cancelledRequestCodes.add(requestCode)
+    }
+
+    override suspend fun dismissAlarmsForDay(day: LocalDate) {
+        dismissedDays.add(day)
+        _schedules.value = _schedules.value?.filterNot { it.day == day }
     }
 
     override suspend fun saveDebugConfig(config: DebugConfig) {

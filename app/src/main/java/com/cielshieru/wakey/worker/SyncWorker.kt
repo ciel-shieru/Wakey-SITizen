@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.data.network.TimetableClient
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import com.cielshieru.wakey.data.store.AlarmDismissalStore.clearDismissedAlarmDaysBefore
+import com.cielshieru.wakey.data.store.AlarmDismissalStore.dismissedAlarmDaysFlow
 import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
@@ -86,6 +88,7 @@ class SyncWorker @AssistedInject constructor(
         val now = clock.now()
         try {
             val config = dataStore.data.configFlow().first()
+            dataStore.clearDismissedAlarmDaysBefore(now.atZone(zone).toLocalDate())
 
             // Debug: read debug config and log diagnostic info.
             val debugConfig = dataStore.data.debugConfigFlow().first()
@@ -185,12 +188,17 @@ class SyncWorker @AssistedInject constructor(
             if (debugConfig.debugModeEnabled) {
                 Log.d(DEBUG_TAG, "Overrides: ${activeOverrides.size} active, ${overrides.size - activeOverrides.size} expired")
             }
-            val finalSchedules =
+            val resolvedSchedules =
                 OverrideResolver.resolve(activeOverrides, now, zone)?.let { resolved ->
                     adjustedSchedules.map { schedule ->
                         OverrideResolver.applyOverride(resolved, schedule, zone)
                     }
                 } ?: adjustedSchedules
+
+            // A user dismissal is authoritative for that calendar day. Persisted
+            // dismissals ensure a later periodic/boot sync cannot re-arm alarms.
+            val dismissedDays = dataStore.data.dismissedAlarmDaysFlow().first()
+            val finalSchedules = resolvedSchedules.filterNot { it.day in dismissedDays }
 
             // Step 6: reconcile alarms — clear-then-set (ADR-0003). Also
             // cancel days that had alarms before but are absent now, so no

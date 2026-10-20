@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.cielshieru.wakey.ui.MainActivity
+import java.time.LocalDate
 
 /**
  * Notification channels and posting for wake-up alarms and bedtime reminders.
@@ -25,6 +26,7 @@ object NotificationService {
     const val BEDTIME_NOTIFICATION_ID = 2
 
     private const val STOP_ALARM_REQUEST_CODE = 20_001
+    private const val DISMISS_ALARMS_REQUEST_CODE = 20_002
 
     fun initChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -75,6 +77,16 @@ object NotificationService {
             stopIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        val dismissIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = AlarmService.ACTION_DISMISS_REMAINING_ALARMS
+            putExtra(AlarmService.EXTRA_ALARM_DAY, alarmDay ?: LocalDate.now().toString())
+        }
+        val dismissPendingIntent = PendingIntent.getBroadcast(
+            context,
+            DISMISS_ALARMS_REQUEST_CODE,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
 
         return NotificationCompat.Builder(context, CHANNEL_ALARMS)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
@@ -86,6 +98,7 @@ object NotificationService {
             .setAutoCancel(false)
             .setContentIntent(mainActivityPendingIntent(context))
             .addAction(android.R.drawable.ic_media_pause, "Stop alarm", stopPendingIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Dismiss remaining today", dismissPendingIntent)
             .build()
     }
 

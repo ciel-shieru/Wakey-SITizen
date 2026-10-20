@@ -8,6 +8,8 @@ import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
+import com.cielshieru.wakey.data.store.AlarmStore.removeScheduleForDay
+import com.cielshieru.wakey.data.store.AlarmDismissalStore.dismissAlarmsForDay as persistDismissedDay
 import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
 import com.cielshieru.wakey.data.store.DebugConfigStore.saveDebugConfig
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Instant
+import java.time.LocalDate
 
 class AlarmRepositoryImpl(
     private val datastore: DataStore<Preferences>,
@@ -75,5 +78,12 @@ class AlarmRepositoryImpl(
 
     override suspend fun cancelAlarm(requestCode: Int) {
         alarmService.cancelAlarmByRequestCode(requestCode)
+    }
+
+    override suspend fun dismissAlarmsForDay(day: LocalDate) {
+        datastore.persistDismissedDay(day)
+        datastore.removeScheduleForDay(day)
+        alarmService.cancelAlarmsForDay(day)
+        alarmService.stopCurrentAlarm()
     }
 }

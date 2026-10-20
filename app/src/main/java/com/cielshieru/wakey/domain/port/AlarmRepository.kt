@@ -5,6 +5,7 @@ import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface AlarmRepository {
     val config: Flow<AlarmConfig>
@@ -17,6 +18,7 @@ interface AlarmRepository {
     suspend fun clearExpiredOverrides(): Int
     suspend fun clearAllOverrides()
     suspend fun cancelAlarm(requestCode: Int)
+    suspend fun dismissAlarmsForDay(day: LocalDate)
     val debugConfig: Flow<DebugConfig>
     suspend fun saveDebugConfig(config: DebugConfig)
 }

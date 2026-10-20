@@ -216,6 +216,20 @@ fun HomeScreen(
                 Text("Reset Skip & Custom Time")
             }
 
+            if (uiState.scheduledAlarms.any { it.day == uiState.currentDay }) {
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = viewModel::dismissRemainingAlarmsForToday,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Cancel, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Dismiss Remaining Alarms Today")
+                }
+            }
+
             if (uiState.scheduledAlarms.isNotEmpty()) {
                 Text("Scheduled Alarms", style = MaterialTheme.typography.titleMedium)
 
