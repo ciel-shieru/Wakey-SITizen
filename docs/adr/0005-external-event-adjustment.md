@@ -39,10 +39,11 @@ At least one calendar must be selected for the feature to activate. The selectio
 ### Event query
 
 For each sync, the app queries events from the selected calendars:
-- **Projection**: Only `title`, `dtstart`, and `dtend` are read. Never read: descriptions, attendees, locations, visibility, or transparency.
-- **Time range**: `[today 00:00, tomorrow 00:00)` in the device's timezone.
-- **Content URI**: `CalendarContract.Events.CONTENT_URI` with a selection filter on `CalendarContract.Events.CALENDAR_ID IN (selectedCalendarIds)`.
-- **Timezone handling**: Events are returned in the device's timezone. The app converts them to `Asia/Singapore` for comparison with timetable events (which use `Asia/Singapore`).
+- **Projection**: Only `title`, instance start/end, all-day status, and calendar ID are read. Never read descriptions, attendees, locations, visibility, or transparency.
+- **Time range**: The worker queries the previous calendar day and the schedule day in the device timezone. The preceding date is included because the supported adjustment buffer can span midnight (up to 12 hours).
+- **Content URI**: `CalendarContract.Instances.CONTENT_URI`, with the query begin/end appended as path segments and a `CALENDAR_ID IN (selectedCalendarIds)` filter. Querying instances expands recurring occurrences; a master event definition alone may have a DTSTART far outside the requested date.
+- **Calendar scope**: An empty selected-calendar list returns no events; it must never broaden into a scan of every calendar.
+- **Timezone handling**: Instance timestamps are converted from epoch milliseconds into the device timezone for comparison with the local timetable schedule.
 
 ### Adjustment logic
 
