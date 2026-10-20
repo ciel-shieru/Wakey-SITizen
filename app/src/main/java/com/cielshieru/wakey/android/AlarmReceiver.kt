@@ -36,8 +36,12 @@ class AlarmReceiver : BroadcastReceiver() {
                 AlarmPlaybackService.start(context, alarmIndex.takeIf { it >= 0 }, alarmDay, ringtoneUri)
             }
 
-            AlarmService.ACTION_BEDTIME_REMINDER ->
-                NotificationService.showBedtimeNotification(context)
+            AlarmService.ACTION_BEDTIME_REMINDER -> {
+                val bedtimeAtMillis = intent
+                    .getLongExtra(AlarmService.EXTRA_BEDTIME_AT_MILLIS, 0L)
+                    .takeIf { it > 0L }
+                NotificationService.showBedtimeNotification(context, bedtimeAtMillis)
+            }
 
             AlarmService.ACTION_DISMISS_REMAINING_ALARMS -> {
                 val day = intent.getStringExtra(AlarmService.EXTRA_ALARM_DAY)
