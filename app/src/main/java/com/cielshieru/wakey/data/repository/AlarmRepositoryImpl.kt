@@ -10,6 +10,7 @@ import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.data.store.AlarmStore.saveSchedules
 import com.cielshieru.wakey.data.store.AlarmStore.removeScheduleForDay
 import com.cielshieru.wakey.data.store.AlarmDismissalStore.dismissAlarmsForDay as persistDismissedDay
+import com.cielshieru.wakey.data.store.AlarmDismissalStore.clearDismissalForDay as clearPersistedDismissal
 import com.cielshieru.wakey.data.store.DebugConfigStore.debugConfigFlow
 import com.cielshieru.wakey.data.store.DebugConfigStore.saveDebugConfig
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
@@ -89,5 +90,9 @@ class AlarmRepositoryImpl(
         datastore.removeScheduleForDay(day)
         alarmService.cancelAlarmsForDay(day)
         alarmService.stopCurrentAlarm()
+    }
+
+    override suspend fun clearDismissalForDay(day: LocalDate) {
+        datastore.clearPersistedDismissal(day)
     }
 }
