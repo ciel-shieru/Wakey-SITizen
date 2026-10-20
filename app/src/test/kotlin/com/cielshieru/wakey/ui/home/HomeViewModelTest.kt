@@ -108,6 +108,15 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `resetOverrides also clears today's dismissal`() = runTest {
+        val today = fakeClock.now().atZone(fakeZoneProvider.zone).toLocalDate()
+        viewModel.resetOverrides()
+
+        assertEquals(listOf(today), fakeAlarmRepository.clearedDismissedDays)
+        assertTrue(fakeSyncUseCase.syncCalled)
+    }
+
+    @Test
     fun `resetOverrides with multiple override types clears all`() = runTest {
         fakeAlarmRepository.saveOverride(
             com.cielshieru.wakey.domain.model.ManualOverride(
