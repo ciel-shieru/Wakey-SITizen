@@ -713,7 +713,6 @@ fun SettingsScreen(
     }
 }
 
-@Composable
 private fun formatServerFetchTime(value: String?): String {
     if (value.isNullOrBlank()) return "No fetch job has run yet"
     return runCatching {
