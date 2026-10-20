@@ -321,8 +321,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.onlineOffset.toString(),
-                    onValueChange = { viewModel.updateOnlineOffset(it.toIntOrNull() ?: 60) },
+                    value = uiState.onlineOffset,
+                    onValueChange = viewModel::updateOnlineOffset,
+                    placeholder = { Text("60") },
                     label = { Text("Online offset (minutes)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
@@ -331,8 +332,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.campusOffset.toString(),
-                    onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
+                    value = uiState.campusOffset,
+                    onValueChange = viewModel::updateCampusOffset,
+                    placeholder = { Text("90") },
                     label = { Text("Campus offset (minutes)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
@@ -419,8 +421,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.repeatInterval.toString(),
-                    onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
+                    value = uiState.repeatInterval,
+                    onValueChange = viewModel::updateRepeatInterval,
+                    placeholder = { Text("5") },
                     label = { Text("Repeat interval (minutes, 1-30)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
@@ -429,8 +432,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.maxRepeats.toString(),
-                    onValueChange = { viewModel.updateMaxRepeats(it.toIntOrNull() ?: 6) },
+                    value = uiState.maxRepeats,
+                    onValueChange = viewModel::updateMaxRepeats,
+                    placeholder = { Text("6") },
                     label = { Text("Max repeats (1-20)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
@@ -468,8 +472,9 @@ fun SettingsScreen(
 
                     if (uiState.bedtimeReminderMode == BedtimeReminderMode.Relative) {
                         OutlinedTextField(
-                            value = uiState.bedtimeOffset.toString(),
-                            onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
+                            value = uiState.bedtimeOffset,
+                            onValueChange = viewModel::updateBedtimeOffset,
+                            placeholder = { Text("30") },
                             label = { Text("Reminder before bedtime (minutes, 5-1440)") },
                             singleLine = true,
                             supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 1440, "Bedtime offset") }
@@ -486,8 +491,9 @@ fun SettingsScreen(
                     }
 
                     OutlinedTextField(
-                        value = uiState.sleepDuration.toString(),
-                        onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
+                        value = uiState.sleepDuration,
+                        onValueChange = viewModel::updateSleepDuration,
+                        placeholder = { Text("8") },
                         label = { Text("Target sleep (hours, 1-24)") },
                         singleLine = true,
                         supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 1, 24, "Target sleep") }
@@ -567,8 +573,9 @@ fun SettingsScreen(
             if (uiState.externalEnabled) {
                 item {
                     OutlinedTextField(
-                        value = uiState.externalBuffer.toString(),
-                        onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
+                        value = uiState.externalBuffer,
+                        onValueChange = viewModel::updateExternalBuffer,
+                        placeholder = { Text("30") },
                         label = { Text("Buffer minutes (1-720)") },
                         singleLine = true,
                         supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 1, 720, "Buffer") }

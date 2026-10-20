@@ -43,15 +43,15 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val onlineOffset: Int = 60,
-    val campusOffset: Int = 90,
-    val repeatInterval: Int = 5,
-    val maxRepeats: Int = 6,
-    val sleepDuration: Int = 8,
-    val bedtimeOffset: Int = 30,
+    val onlineOffset: String = "",
+    val campusOffset: String = "",
+    val repeatInterval: String = "",
+    val maxRepeats: String = "",
+    val sleepDuration: String = "",
+    val bedtimeOffset: String = "",
     val bedtimeReminderMode: BedtimeReminderMode = BedtimeReminderMode.Absolute,
     val bedtimeAbsoluteTime: String = "19:00",
-    val externalBuffer: Int = 30,
+    val externalBuffer: String = "",
     val externalEnabled: Boolean = false,
     val externalCalendarIds: List<String> = emptyList(),
     val bedtimeEnabled: Boolean = false,
@@ -145,15 +145,15 @@ class SettingsViewModel @Inject constructor(
                 val campusId = config.campusCalendarId
 
                 SettingsUiState(
-                    onlineOffset = config.onlineOffsetMinutes,
-                    campusOffset = config.campusOffsetMinutes,
-                    repeatInterval = config.repeatIntervalMinutes,
-                    maxRepeats = config.maxRepeats,
-                    sleepDuration = config.targetSleepDurationHours,
-                    bedtimeOffset = config.bedtimeReminderOffsetMinutes,
+                    onlineOffset = config.onlineOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_ONLINE_OFFSET }?.toString().orEmpty(),
+                    campusOffset = config.campusOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_CAMPUS_OFFSET }?.toString().orEmpty(),
+                    repeatInterval = config.repeatIntervalMinutes.takeUnless { it == AlarmConfig.DEFAULT_REPEAT_INTERVAL }?.toString().orEmpty(),
+                    maxRepeats = config.maxRepeats.takeUnless { it == AlarmConfig.DEFAULT_MAX_REPEATS }?.toString().orEmpty(),
+                    sleepDuration = config.targetSleepDurationHours.takeUnless { it == AlarmConfig.DEFAULT_SLEEP_DURATION }?.toString().orEmpty(),
+                    bedtimeOffset = config.bedtimeReminderOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_BEDTIME_OFFSET }?.toString().orEmpty(),
                     bedtimeReminderMode = config.bedtimeReminderMode,
                     bedtimeAbsoluteTime = config.bedtimeReminderAbsoluteTime.toString(),
-                    externalBuffer = config.externalEventBufferMinutes,
+                    externalBuffer = config.externalEventBufferMinutes.takeUnless { it == AlarmConfig.DEFAULT_BUFFER_MINUTES }?.toString().orEmpty(),
                     externalEnabled = config.externalEventEnabled,
                     externalCalendarIds = config.externalEventCalendarIds,
                     bedtimeEnabled = config.bedtimeEnabled,
@@ -176,27 +176,27 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun updateOnlineOffset(value: Int) {
+    fun updateOnlineOffset(value: String) {
         _uiState.update { it.copy(onlineOffset = value) }
     }
 
-    fun updateCampusOffset(value: Int) {
+    fun updateCampusOffset(value: String) {
         _uiState.update { it.copy(campusOffset = value) }
     }
 
-    fun updateRepeatInterval(value: Int) {
+    fun updateRepeatInterval(value: String) {
         _uiState.update { it.copy(repeatInterval = value) }
     }
 
-    fun updateMaxRepeats(value: Int) {
+    fun updateMaxRepeats(value: String) {
         _uiState.update { it.copy(maxRepeats = value) }
     }
 
-    fun updateSleepDuration(value: Int) {
+    fun updateSleepDuration(value: String) {
         _uiState.update { it.copy(sleepDuration = value) }
     }
 
-    fun updateBedtimeOffset(value: Int) {
+    fun updateBedtimeOffset(value: String) {
         _uiState.update { it.copy(bedtimeOffset = value) }
     }
 
@@ -208,7 +208,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(bedtimeAbsoluteTime = value) }
     }
 
-    fun updateExternalBuffer(value: Int) {
+    fun updateExternalBuffer(value: String) {
         _uiState.update { it.copy(externalBuffer = value) }
     }
 
@@ -404,15 +404,15 @@ class SettingsViewModel @Inject constructor(
             }.distinct()
 
             val config = AlarmConfig(
-                onlineOffsetMinutes = state.onlineOffset,
-                campusOffsetMinutes = state.campusOffset,
-                repeatIntervalMinutes = state.repeatInterval,
-                maxRepeats = state.maxRepeats,
-                targetSleepDurationHours = state.sleepDuration,
-                bedtimeReminderOffsetMinutes = state.bedtimeOffset,
+                onlineOffsetMinutes = state.onlineOffset.toIntOrNull() ?: AlarmConfig.DEFAULT_ONLINE_OFFSET,
+                campusOffsetMinutes = state.campusOffset.toIntOrNull() ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET,
+                repeatIntervalMinutes = state.repeatInterval.toIntOrNull() ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL,
+                maxRepeats = state.maxRepeats.toIntOrNull() ?: AlarmConfig.DEFAULT_MAX_REPEATS,
+                targetSleepDurationHours = state.sleepDuration.toIntOrNull() ?: AlarmConfig.DEFAULT_SLEEP_DURATION,
+                bedtimeReminderOffsetMinutes = state.bedtimeOffset.toIntOrNull() ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET,
                 bedtimeReminderMode = state.bedtimeReminderMode,
                 bedtimeReminderAbsoluteTime = runCatching { java.time.LocalTime.parse(state.bedtimeAbsoluteTime) }.getOrDefault(AlarmConfig.DEFAULT_BEDTIME_ABSOLUTE_TIME),
-                externalEventBufferMinutes = state.externalBuffer,
+                externalEventBufferMinutes = state.externalBuffer.toIntOrNull() ?: AlarmConfig.DEFAULT_BUFFER_MINUTES,
                 externalEventEnabled = state.externalEnabled,
                 externalEventCalendarIds = state.externalCalendarIds,
                 selectedCalendarIds = selectedCalendarIds,

@@ -85,6 +85,49 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
+    fun `numeric fields with default config values are initially empty`() = runTest {
+        val state = viewModel.uiState.value
+
+        assertEquals("", state.onlineOffset)
+        assertEquals("", state.campusOffset)
+        assertEquals("", state.repeatInterval)
+        assertEquals("", state.maxRepeats)
+        assertEquals("", state.sleepDuration)
+        assertEquals("", state.bedtimeOffset)
+        assertEquals("", state.externalBuffer)
+    }
+
+    @Test
+    fun `empty numeric fields stay empty and save uses configured defaults`() = runTest {
+        viewModel.updateOnlineOffset("")
+        viewModel.updateCampusOffset("")
+        viewModel.updateRepeatInterval("")
+        viewModel.updateMaxRepeats("")
+        viewModel.updateSleepDuration("")
+        viewModel.updateBedtimeOffset("")
+        viewModel.updateExternalBuffer("")
+
+        assertEquals("", viewModel.uiState.value.onlineOffset)
+        assertEquals("", viewModel.uiState.value.campusOffset)
+        assertEquals("", viewModel.uiState.value.repeatInterval)
+        assertEquals("", viewModel.uiState.value.maxRepeats)
+        assertEquals("", viewModel.uiState.value.sleepDuration)
+        assertEquals("", viewModel.uiState.value.bedtimeOffset)
+        assertEquals("", viewModel.uiState.value.externalBuffer)
+
+        viewModel.saveConfig()
+
+        val saved = alarmRepository.savedConfig!!
+        assertEquals(AlarmConfig.DEFAULT_ONLINE_OFFSET, saved.onlineOffsetMinutes)
+        assertEquals(AlarmConfig.DEFAULT_CAMPUS_OFFSET, saved.campusOffsetMinutes)
+        assertEquals(AlarmConfig.DEFAULT_REPEAT_INTERVAL, saved.repeatIntervalMinutes)
+        assertEquals(AlarmConfig.DEFAULT_MAX_REPEATS, saved.maxRepeats)
+        assertEquals(AlarmConfig.DEFAULT_SLEEP_DURATION, saved.targetSleepDurationHours)
+        assertEquals(AlarmConfig.DEFAULT_BEDTIME_OFFSET, saved.bedtimeReminderOffsetMinutes)
+        assertEquals(AlarmConfig.DEFAULT_BUFFER_MINUTES, saved.externalEventBufferMinutes)
+    }
+
+    @Test
     fun `server status eligibility follows saved discovery mode, not unsaved selection`() = runTest {
         assertEquals(com.cielshieru.wakey.domain.model.DiscoveryMode.DeviceCalendar, viewModel.savedServerSettings.value.discoveryMode)
 
