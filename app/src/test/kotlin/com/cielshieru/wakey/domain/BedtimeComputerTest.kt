@@ -31,6 +31,9 @@ class BedtimeComputerTest {
         val result = BedtimeComputer.compute(listOf(schedule), config, now)
 
         assertNotNull(result)
+        assertEquals(Instant.parse("2026-10-06T23:30:00Z"), result!!.bedtimeAt)
+        assertEquals(Instant.parse("2026-10-06T23:00:00Z"), result.triggerAt)
+        assertEquals("Bedtime is 11:30 PM. Your alarm is set for 7:30 AM.", result.message)
     }
 
     @Test
