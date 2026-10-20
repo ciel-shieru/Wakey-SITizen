@@ -569,9 +569,9 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = uiState.externalBuffer.toString(),
                         onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
-                        label = { Text("Buffer minutes (5-120)") },
+                        label = { Text("Buffer minutes (1-720)") },
                         singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
+                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 1, 720, "Buffer") }
                     )
                 }
 

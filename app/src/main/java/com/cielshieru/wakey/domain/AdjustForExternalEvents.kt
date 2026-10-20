@@ -40,7 +40,7 @@ object AdjustForExternalEvents {
         val newAlarmTime = latestEvent.dtstart.atZone(zone).toInstant()
         return schedule.copy(
             alarms = schedule.alarms.map { alarm ->
-                val offsetFromFirst = alarm.triggerAt.until(firstAlarm, ChronoUnit.MINUTES)
+                val offsetFromFirst = firstAlarm.until(alarm.triggerAt, ChronoUnit.MINUTES)
                 alarm.copy(triggerAt = newAlarmTime.plus(offsetFromFirst, ChronoUnit.MINUTES))
             },
             firstAlarmTime = newAlarmTime

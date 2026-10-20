@@ -45,7 +45,7 @@ data class AlarmConfig(
             maxRepeats = config.maxRepeats.coerceIn(1, 20),
             targetSleepDurationHours = config.targetSleepDurationHours.coerceIn(1, 24),
             bedtimeReminderOffsetMinutes = config.bedtimeReminderOffsetMinutes.coerceIn(5, 1440),
-            externalEventBufferMinutes = config.externalEventBufferMinutes.coerceIn(5, 120)
+            externalEventBufferMinutes = config.externalEventBufferMinutes.coerceIn(1, 720)
         )
     }
 }
