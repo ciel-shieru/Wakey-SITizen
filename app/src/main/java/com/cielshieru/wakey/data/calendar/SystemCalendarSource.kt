@@ -18,10 +18,10 @@ import kotlinx.coroutines.withContext
  * Self-made on purpose (ADR-0009): `CalendarContract` is a platform API and
  * the required projection is a single straightforward query.
  *
- * [calendarIds] selects the calendars to scan; an empty list scans all
- * calendars on the device. Only timed events are returned — all-day events
- * carry a date (not a timestamp) in `DTSTART` and would produce meaningless
- * local-datetime values for the adjustment algorithm.
+ * [calendarIds] explicitly limits the scan to selected calendars; an empty
+ * selection returns no events. Instances are queried rather than event
+ * definitions so recurring events are expanded by the Calendar Provider.
+ * Only title, start/end, all-day status, and selected-calendar identity are read.
  *
  * Requires `READ_CALENDAR` (ADR-0008); callers are responsible for only
  * invoking this once the permission is granted.
@@ -69,40 +69,36 @@ class SystemCalendarSource(
         date: LocalDate,
         calendarIds: List<String>
     ): List<ExternalEvent> = withContext(Dispatchers.IO) {
+        if (calendarIds.isEmpty()) return@withContext emptyList()
+
         val startMillis = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val endMillis = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-
-        val calendarClause = if (calendarIds.isNotEmpty()) {
-            val placeholders = calendarIds.joinToString(", ") { "?" }
-            " AND ${CalendarContract.Events.CALENDAR_ID} IN ($placeholders)"
-        } else {
-            ""
-        }
-        val selection =
-            "${CalendarContract.Events.DTSTART} >= ? AND " +
-                "${CalendarContract.Events.DTSTART} < ?$calendarClause"
-        val selectionArgs: Array<String> =
-            arrayOf(startMillis.toString(), endMillis.toString()) + calendarIds
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
+            .appendPath(startMillis.toString())
+            .appendPath(endMillis.toString())
+            .build()
+        val placeholders = calendarIds.joinToString(", ") { "?" }
+        val selection = "${CalendarContract.Instances.CALENDAR_ID} IN ($placeholders)"
+        val selectionArgs = calendarIds.toTypedArray()
 
         val cursor = contentResolver.query(
-            CalendarContract.Events.CONTENT_URI,
+            uri,
             arrayOf(
-                CalendarContract.Events.TITLE,
-                CalendarContract.Events.DTSTART,
-                CalendarContract.Events.DTEND,
-                CalendarContract.Events.EVENT_LOCATION,
-                CalendarContract.Events.ALL_DAY,
-                CalendarContract.Events.CALENDAR_ID
+                CalendarContract.Instances.TITLE,
+                CalendarContract.Instances.BEGIN,
+                CalendarContract.Instances.END,
+                CalendarContract.Instances.ALL_DAY,
+                CalendarContract.Instances.CALENDAR_ID
             ),
             selection,
             selectionArgs,
-            "${CalendarContract.Events.DTSTART} ASC"
+            "${CalendarContract.Instances.BEGIN} ASC"
         ) ?: return@withContext emptyList()
 
         cursor.use { c ->
             val events = mutableListOf<ExternalEvent>()
             while (c.moveToNext()) {
-                // Skip all-day events (their DTSTART/DTEND are local dates, not timestamps).
+                // Skip all-day events; their day-long interval is not suitable for minute-level alarm adjustment.
                 if (c.getInt(COL_ALL_DAY) != 0) continue
 
                 val startMillis = c.getLong(COL_DTSTART)
@@ -124,8 +120,7 @@ class SystemCalendarSource(
         const val COL_TITLE = 0
         const val COL_DTSTART = 1
         const val COL_DTEND = 2
-        const val COL_LOCATION = 3
-        const val COL_ALL_DAY = 4
-        const val COL_CALENDAR_ID = 5
+        const val COL_ALL_DAY = 3
+        const val COL_CALENDAR_ID = 4
     }
 }
