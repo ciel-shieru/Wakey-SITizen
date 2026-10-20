@@ -33,7 +33,10 @@ object BedtimeComputer {
         val reminderTime = targetBedtime
             .minus(config.bedtimeReminderOffsetMinutes.toLong(), ChronoUnit.MINUTES)
 
-        if (reminderTime.isBefore(now)) return null
+        // Keep the target bedtime available to the UI even when its reminder trigger
+        // has passed. The worker independently decides whether notification delivery
+        // can still be scheduled.
+        if (targetBedtime.isBefore(now)) return null
 
         return BedtimeReminder(
             triggerAt = reminderTime,
