@@ -26,6 +26,17 @@ object AlarmDismissalStore {
         }
     }
 
+    suspend fun DataStore<Preferences>.clearDismissalForDay(day: LocalDate) {
+        edit { prefs ->
+            val retained = parseDays(prefs[DISMISSED_ALARM_DAYS]) - day
+            if (retained.isEmpty()) {
+                prefs.remove(DISMISSED_ALARM_DAYS)
+            } else {
+                prefs[DISMISSED_ALARM_DAYS] = retained.sorted().joinToString(",")
+            }
+        }
+    }
+
     suspend fun DataStore<Preferences>.clearDismissedAlarmDaysBefore(today: LocalDate) {
         edit { prefs ->
             val retained = parseDays(prefs[DISMISSED_ALARM_DAYS]).filter { !it.isBefore(today) }
