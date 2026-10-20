@@ -3,6 +3,7 @@ package com.cielshieru.wakey.domain
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.BedtimeReminder
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -30,12 +31,23 @@ object BedtimeComputer {
         // controls delivery time, not the bedtime displayed to the user.
         val sleepDurationMinutes = config.targetSleepDurationHours.toLong() * 60L
         val targetBedtime = firstAlarmTime.minus(sleepDurationMinutes, ChronoUnit.MINUTES)
-        val reminderTime = targetBedtime
-            .minus(config.bedtimeReminderOffsetMinutes.toLong(), ChronoUnit.MINUTES)
+        val reminderTime = when (config.bedtimeReminderMode) {
+            BedtimeReminderMode.Relative -> targetBedtime
+                .minus(config.bedtimeReminderOffsetMinutes.toLong(), ChronoUnit.MINUTES)
+            BedtimeReminderMode.Absolute -> {
+                val bedtimeDate = targetBedtime.atZone(zone).toLocalDate()
+                val candidate = bedtimeDate.atTime(config.bedtimeReminderAbsoluteTime)
+                    .atZone(zone).toInstant()
+                // An absolute reminder must precede this bedtime. For after-midnight
+                // bedtimes, the configured evening time belongs to the previous date.
+                if (candidate.isBefore(targetBedtime)) candidate
+                else bedtimeDate.minusDays(1).atTime(config.bedtimeReminderAbsoluteTime)
+                    .atZone(zone).toInstant()
+            }
+        }
 
-        // Keep the target bedtime available to the UI even when its reminder trigger
-        // has passed. The worker independently decides whether notification delivery
-        // can still be scheduled.
+        // The target bedtime remains valid even if its reminder trigger has passed.
+        // Delivery scheduling is handled separately by SyncWorker.
         if (targetBedtime.isBefore(now)) return null
 
         return BedtimeReminder(

@@ -15,6 +15,7 @@ import com.cielshieru.wakey.data.network.ServerStatusClient
 import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.domain.model.AlarmConfig
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
@@ -48,6 +49,8 @@ data class SettingsUiState(
     val maxRepeats: Int = 6,
     val sleepDuration: Int = 8,
     val bedtimeOffset: Int = 30,
+    val bedtimeReminderMode: BedtimeReminderMode = BedtimeReminderMode.Absolute,
+    val bedtimeAbsoluteTime: String = "19:00",
     val externalBuffer: Int = 30,
     val externalEnabled: Boolean = false,
     val externalCalendarIds: List<String> = emptyList(),
@@ -148,6 +151,8 @@ class SettingsViewModel @Inject constructor(
                     maxRepeats = config.maxRepeats,
                     sleepDuration = config.targetSleepDurationHours,
                     bedtimeOffset = config.bedtimeReminderOffsetMinutes,
+                    bedtimeReminderMode = config.bedtimeReminderMode,
+                    bedtimeAbsoluteTime = config.bedtimeReminderAbsoluteTime.toString(),
                     externalBuffer = config.externalEventBufferMinutes,
                     externalEnabled = config.externalEventEnabled,
                     externalCalendarIds = config.externalEventCalendarIds,
@@ -193,6 +198,14 @@ class SettingsViewModel @Inject constructor(
 
     fun updateBedtimeOffset(value: Int) {
         _uiState.update { it.copy(bedtimeOffset = value) }
+    }
+
+    fun selectBedtimeReminderMode(mode: BedtimeReminderMode) {
+        _uiState.update { it.copy(bedtimeReminderMode = mode) }
+    }
+
+    fun updateBedtimeAbsoluteTime(value: String) {
+        _uiState.update { it.copy(bedtimeAbsoluteTime = value) }
     }
 
     fun updateExternalBuffer(value: Int) {
@@ -397,6 +410,8 @@ class SettingsViewModel @Inject constructor(
                 maxRepeats = state.maxRepeats,
                 targetSleepDurationHours = state.sleepDuration,
                 bedtimeReminderOffsetMinutes = state.bedtimeOffset,
+                bedtimeReminderMode = state.bedtimeReminderMode,
+                bedtimeReminderAbsoluteTime = runCatching { java.time.LocalTime.parse(state.bedtimeAbsoluteTime) }.getOrDefault(AlarmConfig.DEFAULT_BEDTIME_ABSOLUTE_TIME),
                 externalEventBufferMinutes = state.externalBuffer,
                 externalEventEnabled = state.externalEnabled,
                 externalEventCalendarIds = state.externalCalendarIds,
