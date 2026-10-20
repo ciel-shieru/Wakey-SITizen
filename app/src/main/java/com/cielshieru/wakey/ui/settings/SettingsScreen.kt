@@ -399,15 +399,6 @@ fun SettingsScreen(
             }
 
             item {
-                Button(
-                    onClick = { onNavigateToRingtonePicker() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Manage Ringtones")
-                }
-            }
-
-            item {
                 OutlinedTextField(
                     value = uiState.repeatInterval.toString(),
                     onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
@@ -497,6 +488,19 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+            }
+
+            item {
+                Text("Ringtones", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                Button(
+                    onClick = { onNavigateToRingtonePicker() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Manage Ringtones")
                 }
             }
 
