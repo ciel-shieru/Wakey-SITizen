@@ -249,7 +249,7 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
 
-            val bedtime = BedtimeComputer.compute(finalSchedules, config, now)
+            val bedtime = BedtimeComputer.compute(finalSchedules, config, now, zone)
             if (debugConfig.debugModeEnabled) {
                 if (bedtime != null) {
                     debugLogger.logBedtimeSet(bedtime)
@@ -258,7 +258,10 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
             if (bedtime != null) {
-                alarmService.setBedtimeReminder(bedtime.triggerAt.toEpochMilli())
+                alarmService.setBedtimeReminder(
+                    bedtime.triggerAt.toEpochMilli(),
+                    bedtime.bedtimeAt.toEpochMilli()
+                )
             } else {
                 // No upcoming alarm (or reminder already passed) — make sure a
                 // previously scheduled reminder does not fire stale.
