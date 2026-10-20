@@ -1,6 +1,7 @@
 package com.cielshieru.wakey.data.store
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import com.cielshieru.wakey.data.store.AlarmDismissalStore.clearDismissalForDay
 import com.cielshieru.wakey.data.store.AlarmDismissalStore.clearDismissedAlarmDaysBefore
 import com.cielshieru.wakey.data.store.AlarmDismissalStore.dismissAlarmsForDay
 import com.cielshieru.wakey.data.store.AlarmDismissalStore.dismissedAlarmDaysFlow
@@ -24,6 +25,21 @@ class AlarmDismissalStoreTest {
         store.dismissAlarmsForDay(day)
 
         assertEquals(setOf(day), store.data.dismissedAlarmDaysFlow().first())
+        file.delete()
+    }
+
+    @Test
+    fun `one dismissed day can be cleared without affecting other days`() = runTest {
+        val file = File("/tmp/test_alarm_dismissal_clear.preferences_pb")
+        val store = PreferenceDataStoreFactory.create(produceFile = { file })
+        val today = LocalDate.of(2026, 10, 21)
+        val tomorrow = today.plusDays(1)
+        store.dismissAlarmsForDay(today)
+        store.dismissAlarmsForDay(tomorrow)
+
+        store.clearDismissalForDay(today)
+
+        assertEquals(setOf(tomorrow), store.data.dismissedAlarmDaysFlow().first())
         file.delete()
     }
 
