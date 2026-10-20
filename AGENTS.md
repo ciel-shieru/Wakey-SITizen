@@ -55,7 +55,7 @@ app/src/main/java/com/cielshieru/wakey/
   - Flow testing uses Turbine (`app.cash.turbine:turbine`).
   - Coroutine testing uses `kotlinx.coroutines.test` `runTest`.
 - **ADRs**: All architectural decisions are in `docs/adr/`. They are the source of truth when code is ambiguous. New decisions get a new numbered ADR.
-- **Network**: The only allowed network destination is the SIT-ICS-Go base URL configured by the user. Do not add other endpoints.
+- **Network**: The only allowed network destination is the SIT-ICS-Go base URL configured by the user. Do not add other hosts or endpoints outside that server. Status integration calls only `/status` and `/refresh` on the validated saved URL, disables redirects, and is shown only when the persisted discovery mode is `RemoteServer`.
 - **No GMS**: The app must never depend on Google Play Services.
 
 ## Gotchas

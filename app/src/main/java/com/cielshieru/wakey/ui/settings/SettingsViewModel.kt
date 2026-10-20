@@ -10,6 +10,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cielshieru.wakey.data.calendar.CalendarEntry
+import com.cielshieru.wakey.data.model.ServerStatusResponse
+import com.cielshieru.wakey.data.network.ServerStatusClient
 import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.domain.model.AlarmConfig
@@ -55,7 +57,17 @@ data class SettingsUiState(
     val externalEventCalendarPicker: MultiSelectCalendarPickerUiState = MultiSelectCalendarPickerUiState(),
     val permissionStatus: List<PermissionEntry> = emptyList(),
     val debugModeEnabled: Boolean = false,
-    val targetDateMillis: Long? = null
+    val targetDateMillis: Long? = null,
+    val serverStatus: ServerStatusResponse? = null,
+    val serverStatusError: String? = null,
+    val serverStatusLoading: Boolean = false,
+    val serverRefreshInProgress: Boolean = false,
+    val serverRefreshMessage: String? = null
+)
+
+data class SavedServerSettings(
+    val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
+    val remoteServerUrl: String = AlarmConfig.DEFAULT_REMOTE_SERVER_URL
 )
 
 data class CalendarDropdownUiState(
@@ -89,13 +101,17 @@ class SettingsViewModel @Inject constructor(
     private val datastore: DataStore<Preferences>,
     private val syncUseCase: SyncOperations,
     private val clock: Clock,
-    private val zoneProvider: ZoneProvider
+    private val zoneProvider: ZoneProvider,
+    private val serverStatusClient: ServerStatusClient = ServerStatusClient()
 ) : ViewModel() {
 
     private var hasLoadedInitialConfig = false
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    private val _savedServerSettings = MutableStateFlow(SavedServerSettings())
+    val savedServerSettings: StateFlow<SavedServerSettings> = _savedServerSettings.asStateFlow()
 
     private val _configSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val configSaved: SharedFlow<Unit> = _configSaved
@@ -104,6 +120,17 @@ class SettingsViewModel @Inject constructor(
     val syncEvent: SharedFlow<SyncEvent> = _syncEvent
 
     init {
+        // Track persisted settings independently of editable form state so remote-only
+        // actions never appear until Remote Server mode has actually been saved.
+        viewModelScope.launch {
+            alarmRepository.config.collect { config ->
+                _savedServerSettings.value = SavedServerSettings(
+                    discoveryMode = config.discoveryMode,
+                    remoteServerUrl = config.remoteServerUrl
+                )
+            }
+        }
+
         viewModelScope.launch {
             combine(
                 alarmRepository.config,
@@ -392,6 +419,80 @@ class SettingsViewModel @Inject constructor(
                 )
             )
             _configSaved.emit(Unit)
+        }
+    }
+
+    fun fetchServerStatus() {
+        val saved = _savedServerSettings.value
+        if (saved.discoveryMode != DiscoveryMode.RemoteServer) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    serverStatus = null,
+                    serverStatusLoading = true,
+                    serverStatusError = null,
+                    serverRefreshMessage = null
+                )
+            }
+            try {
+                val status = serverStatusClient.fetchStatus(saved.remoteServerUrl)
+                _uiState.update {
+                    it.copy(serverStatus = status, serverStatusLoading = false, serverStatusError = null)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        serverStatusLoading = false,
+                        serverStatusError = e.message ?: "Unable to fetch server status"
+                    )
+                }
+            }
+        }
+    }
+
+    fun requestServerRefresh() {
+        val saved = _savedServerSettings.value
+        if (saved.discoveryMode != DiscoveryMode.RemoteServer) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    serverRefreshInProgress = true,
+                    serverStatusError = null,
+                    serverRefreshMessage = null
+                )
+            }
+            try {
+                serverStatusClient.requestRefresh(saved.remoteServerUrl)
+                _uiState.update {
+                    it.copy(serverRefreshMessage = "Refresh job scheduled.")
+                }
+                // The server acknowledges scheduling before the job finishes. A short
+                // delay lets the in-memory job start timestamp become visible on GET.
+                delay(300)
+                val status = serverStatusClient.fetchStatus(saved.remoteServerUrl)
+                _uiState.update {
+                    it.copy(
+                        serverStatus = status,
+                        serverStatusLoading = false,
+                        serverRefreshInProgress = false,
+                        serverStatusError = null,
+                        serverRefreshMessage = "Refresh job scheduled."
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        serverRefreshInProgress = false,
+                        serverStatusError = e.message ?: "Unable to request server refresh"
+                    )
+                }
+            }
         }
     }
 
