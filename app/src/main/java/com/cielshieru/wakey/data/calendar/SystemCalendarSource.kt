@@ -98,7 +98,7 @@ class SystemCalendarSource(
         cursor.use { c ->
             val events = mutableListOf<ExternalEvent>()
             while (c.moveToNext()) {
-                // Skip all-day events (their DTSTART/DTEND are local dates, not timestamps).
+                // Skip all-day events; their day-long interval is not suitable for minute-level alarm adjustment.
                 if (c.getInt(COL_ALL_DAY) != 0) continue
 
                 val startMillis = c.getLong(COL_DTSTART)
