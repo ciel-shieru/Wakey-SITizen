@@ -13,6 +13,8 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import com.cielshieru.wakey.data.RingtoneNameResolver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -276,6 +278,9 @@ private fun AlarmRow(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val ringtoneNameResolver = remember(context) { RingtoneNameResolver(context) }
+
     Card(
         modifier = modifier.fillMaxWidth()
     ) {
@@ -287,7 +292,8 @@ private fun AlarmRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = alarm.formattedTime,
@@ -301,6 +307,14 @@ private fun AlarmRow(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     }
+                )
+                val ringtoneName = remember(alarm.ringtoneUri) {
+                    alarm.ringtoneUri?.let(ringtoneNameResolver::resolveName) ?: "Default device alarm"
+                }
+                Text(
+                    text = "Ringtone: $ringtoneName",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

@@ -50,6 +50,7 @@ data class HomeUiState(
     data class ScheduledAlarm(
         val requestCode: Int,
         val formattedTime: String,
+        val ringtoneUri: String?,
         val isUpcoming: Boolean
     )
 
@@ -231,6 +232,7 @@ class HomeViewModel @Inject constructor(
                                     HomeUiState.ScheduledAlarm(
                                         requestCode = alarm.requestCode,
                                         formattedTime = formattedTime,
+                                        ringtoneUri = alarm.ringtoneUri,
                                         isUpcoming = alarm.triggerAt.isAfter(now)
                                     )
                                 }
