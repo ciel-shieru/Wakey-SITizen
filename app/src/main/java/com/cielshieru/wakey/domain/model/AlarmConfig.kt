@@ -38,8 +38,8 @@ data class AlarmConfig(
             campusOffsetMinutes = config.campusOffsetMinutes.coerceIn(1, 720),
             repeatIntervalMinutes = config.repeatIntervalMinutes.coerceIn(1, 30),
             maxRepeats = config.maxRepeats.coerceIn(1, 20),
-            targetSleepDurationHours = config.targetSleepDurationHours.coerceIn(4, 12),
-            bedtimeReminderOffsetMinutes = config.bedtimeReminderOffsetMinutes.coerceIn(5, 60),
+            targetSleepDurationHours = config.targetSleepDurationHours.coerceIn(1, 24),
+            bedtimeReminderOffsetMinutes = config.bedtimeReminderOffsetMinutes.coerceIn(5, 1440),
             externalEventBufferMinutes = config.externalEventBufferMinutes.coerceIn(5, 120)
         )
     }
