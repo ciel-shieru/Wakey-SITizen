@@ -307,8 +307,10 @@ class HomeViewModel @Inject constructor(
     }
 
     fun resetOverrides() {
+        val today = clock.now().atZone(zoneProvider.zone).toLocalDate()
         viewModelScope.launch {
             alarmRepository.clearAllOverrides()
+            alarmRepository.clearDismissalForDay(today)
             syncOperations.syncImmediately()
         }
     }
