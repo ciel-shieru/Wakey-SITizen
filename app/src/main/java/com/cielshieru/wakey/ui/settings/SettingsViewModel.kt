@@ -460,7 +460,6 @@ class SettingsViewModel @Inject constructor(
 
     private suspend fun persistConfig(state: SettingsUiState) = configSaveMutex.withLock {
             val currentConfig = alarmRepository.config.first()
-            val currentConfig = alarmRepository.config.first()
             val selectedCalendarIds = buildList {
                 state.onlineCalendarPicker.selectedId?.let { add(it) }
                 state.campusCalendarPicker.selectedId?.let { add(it) }

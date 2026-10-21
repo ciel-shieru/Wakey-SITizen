@@ -23,11 +23,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -142,12 +145,28 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
-    fun `saving settings schedules periodic and immediate sync`() = runTest {
+    fun `saving settings requests an immediate sync without cancelling periodic work`() = runTest {
         viewModel.saveConfig()
 
-        assertTrue(syncUseCase.cancelCalled)
-        assertTrue(syncUseCase.scheduleCalled)
+        assertFalse(syncUseCase.cancelCalled)
+        assertFalse(syncUseCase.scheduleCalled)
         assertTrue(syncUseCase.syncCalled)
+    }
+
+    @Test
+    fun `configuration changes auto-save after edits settle and trigger sync`() = runTest {
+        viewModel.updateOnlineOffset("120")
+        advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS - 1)
+        runCurrent()
+        assertNull(alarmRepository.savedConfig)
+
+        viewModel.updateOnlineOffset("180")
+        advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
+        runCurrent()
+
+        assertEquals(180, alarmRepository.savedConfig?.onlineOffsetMinutes)
+        assertTrue(syncUseCase.syncCalled)
+        assertFalse(syncUseCase.cancelCalled)
     }
 
     @Test

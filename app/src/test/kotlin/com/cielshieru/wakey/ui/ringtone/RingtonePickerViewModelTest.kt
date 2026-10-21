@@ -3,11 +3,16 @@ package com.cielshieru.wakey.ui.ringtone
 import com.cielshieru.wakey.data.RingtoneNameResolver
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import com.cielshieru.wakey.fakes.FakeAlarmRepository
+import com.cielshieru.wakey.fakes.FakeSyncUseCase
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -20,20 +25,24 @@ class RingtonePickerViewModelTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var fakeAlarmRepository: FakeAlarmRepository
+    private lateinit var syncUseCase: FakeSyncUseCase
     private lateinit var viewModel: RingtonePickerViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeAlarmRepository = FakeAlarmRepository()
+        syncUseCase = FakeSyncUseCase()
         viewModel = RingtonePickerViewModel(
             alarmRepository = fakeAlarmRepository,
-            ringtoneNameResolver = StubRingtoneNameResolver()
+            ringtoneNameResolver = StubRingtoneNameResolver(),
+            syncUseCase = syncUseCase
         )
     }
 
     @After
     fun tearDown() {
+        viewModel.viewModelScope.cancel()
         Dispatchers.resetMain()
     }
 
@@ -116,7 +125,8 @@ class RingtonePickerViewModelTest {
         val testRepo = FakeAlarmRepository()
         val testViewModel = RingtonePickerViewModel(
             alarmRepository = testRepo,
-            ringtoneNameResolver = StubRingtoneNameResolver()
+            ringtoneNameResolver = StubRingtoneNameResolver(),
+            syncUseCase = FakeSyncUseCase()
         )
 
         val uris = listOf("content://a", "content://b", "content://c")
@@ -134,6 +144,7 @@ class RingtonePickerViewModelTest {
         assertEquals("content://b", state.ringtoneUris[0])
         assertEquals("content://c", state.ringtoneUris[1])
         assertEquals("content://a", state.ringtoneUris[2])
+        testViewModel.viewModelScope.cancel()
     }
 
     @Test
@@ -177,6 +188,19 @@ class RingtonePickerViewModelTest {
         assertEquals(1, savedConfig!!.ringtonePlaylist.size)
         assertEquals("content://saved_ringtone", savedConfig.ringtonePlaylist.ringtoneUris[0])
         assertTrue(savedConfig.ringtonePlaylist.shuffleEnabled)
+    }
+
+    @Test
+    fun `playlist changes auto-save and trigger a replacement sync after edits settle`() = runTest {
+        viewModel.addRingtone("content://autosaved")
+        advanceTimeBy(RingtonePickerViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
+        runCurrent()
+
+        val savedConfig = fakeAlarmRepository.savedConfig
+        assertNotNull(savedConfig)
+        assertEquals("content://autosaved", savedConfig!!.ringtonePlaylist.ringtoneUris.single())
+        assertTrue(syncUseCase.syncCalled)
+        assertFalse(syncUseCase.cancelCalled)
     }
 
     @Test
