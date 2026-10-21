@@ -29,6 +29,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.File
@@ -138,6 +139,15 @@ class SettingsViewModelDebugStateTest {
         viewModel.saveConfig()
         assertEquals(com.cielshieru.wakey.domain.model.DiscoveryMode.RemoteServer, viewModel.savedServerSettings.value.discoveryMode)
         assertEquals("http://localhost:42748", viewModel.savedServerSettings.value.remoteServerUrl)
+    }
+
+    @Test
+    fun `saving settings schedules periodic and immediate sync`() = runTest {
+        viewModel.saveConfig()
+
+        assertTrue(syncUseCase.cancelCalled)
+        assertTrue(syncUseCase.scheduleCalled)
+        assertTrue(syncUseCase.syncCalled)
     }
 
     @Test
