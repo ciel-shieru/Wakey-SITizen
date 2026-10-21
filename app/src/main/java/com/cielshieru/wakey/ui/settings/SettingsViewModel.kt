@@ -14,8 +14,7 @@ import com.cielshieru.wakey.data.model.ServerStatusResponse
 import com.cielshieru.wakey.data.network.ServerStatusClient
 import com.cielshieru.wakey.data.store.PermissionStore
 import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
-import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
-import com.cielshieru.wakey.data.store.NumericConfigField
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.BedtimeReminderMode
@@ -438,7 +437,7 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode,
                 ringtonePlaylist = currentConfig.ringtonePlaylist
             )
-            datastore.saveConfig(config, state.explicitNumericFields)
+            alarmRepository.saveConfig(config, state.explicitNumericFields)
             persistDebugConfig(state)
 
             syncUseCase.cancelSync()
