@@ -62,6 +62,17 @@ class SystemCalendarSource(
     override suspend fun getEventsForDate(
         date: LocalDate,
         calendarIds: List<String>
+    ): List<ExternalEvent> = queryEventsForDate(date, calendarIds, includePeopleSoftMetadata = false)
+
+    override suspend fun getTimetableEventsForDate(
+        date: LocalDate,
+        calendarIds: List<String>
+    ): List<ExternalEvent> = queryEventsForDate(date, calendarIds, includePeopleSoftMetadata = true)
+
+    private suspend fun queryEventsForDate(
+        date: LocalDate,
+        calendarIds: List<String>,
+        includePeopleSoftMetadata: Boolean
     ): List<ExternalEvent> = withContext(Dispatchers.IO) {
         if (calendarIds.isEmpty()) return@withContext emptyList()
 
@@ -109,6 +120,10 @@ class SystemCalendarSource(
                 events.add(c.getLong(COL_EVENT_ID).toString() to event)
             }
             events
+        }
+
+        if (!includePeopleSoftMetadata) {
+            return@withContext eventsWithIds.map { it.second }
         }
 
         val propertiesByEvent = readPeopleSoftProperties(eventsWithIds.map { it.first })
