@@ -9,20 +9,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
-
-enum class NumericConfigField {
-    ONLINE_OFFSET,
-    CAMPUS_OFFSET,
-    REPEAT_INTERVAL,
-    MAX_REPEATS,
-    SLEEP_DURATION,
-    BEDTIME_OFFSET,
-    EXTERNAL_BUFFER
-}
 
 object AlarmConfigStore {
     private val ONLINE_OFFSET = intPreferencesKey("online_offset_minutes")
