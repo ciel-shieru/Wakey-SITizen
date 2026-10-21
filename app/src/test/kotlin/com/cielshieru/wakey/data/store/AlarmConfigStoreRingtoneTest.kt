@@ -78,6 +78,19 @@ class AlarmConfigStoreRingtoneTest {
     }
 
     @Test
+    fun `saving ringtone changes preserves implicit numeric defaults`() = runTest {
+        val testFile = File("/tmp/test_ringtone_preserves_defaults_${System.nanoTime()}.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
+
+        dataStore.saveConfig(AlarmConfig(), explicitlyConfiguredNumericFields = emptySet())
+        val original = dataStore.data.configFlow().first()
+        dataStore.saveConfig(original.copy(ringtonePlaylist = RingtonePlaylist(listOf("content://ringtone"))))
+
+        assertTrue(dataStore.data.explicitNumericConfigFieldsFlow().first().isEmpty())
+        testFile.delete()
+    }
+
+    @Test
     fun `legacy numeric defaults remain implicit while non-default values remain configured`() = runTest {
         val testFile = File("/tmp/test_legacy_numeric_${System.nanoTime()}.preferences_pb")
         val dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
