@@ -13,6 +13,9 @@ import com.cielshieru.wakey.data.calendar.CalendarEntry
 import com.cielshieru.wakey.data.model.ServerStatusResponse
 import com.cielshieru.wakey.data.network.ServerStatusClient
 import com.cielshieru.wakey.data.store.PermissionStore
+import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
+import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
+import com.cielshieru.wakey.data.store.NumericConfigField
 import com.cielshieru.wakey.android.AlarmService
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.BedtimeReminderMode
@@ -44,6 +47,7 @@ import javax.inject.Inject
 
 data class SettingsUiState(
     val onlineOffset: String = "",
+    val explicitNumericFields: Set<NumericConfigField> = emptySet(),
     val campusOffset: String = "",
     val repeatInterval: String = "",
     val maxRepeats: String = "",
@@ -69,6 +73,15 @@ data class SettingsUiState(
     val serverRefreshInProgress: Boolean = false,
     val serverRefreshMessage: String? = null
 )
+
+private fun SettingsUiState.withNumericInput(field: NumericConfigField, value: String): SettingsUiState =
+    copy(
+        explicitNumericFields = if (value.toIntOrNull() != null) {
+            explicitNumericFields + field
+        } else {
+            explicitNumericFields - field
+        }
+    )
 
 data class SavedServerSettings(
     val discoveryMode: DiscoveryMode = DiscoveryMode.DeviceCalendar,
@@ -139,21 +152,23 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 alarmRepository.config,
-                alarmRepository.debugConfig
-            ) { config, debug ->
+                alarmRepository.debugConfig,
+                datastore.data.explicitNumericConfigFieldsFlow()
+            ) { config, debug, explicitNumericFields ->
                 val onlineId = config.onlineCalendarId
                 val campusId = config.campusCalendarId
 
                 SettingsUiState(
-                    onlineOffset = config.onlineOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_ONLINE_OFFSET }?.toString().orEmpty(),
-                    campusOffset = config.campusOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_CAMPUS_OFFSET }?.toString().orEmpty(),
-                    repeatInterval = config.repeatIntervalMinutes.takeUnless { it == AlarmConfig.DEFAULT_REPEAT_INTERVAL }?.toString().orEmpty(),
-                    maxRepeats = config.maxRepeats.takeUnless { it == AlarmConfig.DEFAULT_MAX_REPEATS }?.toString().orEmpty(),
-                    sleepDuration = config.targetSleepDurationHours.takeUnless { it == AlarmConfig.DEFAULT_SLEEP_DURATION }?.toString().orEmpty(),
-                    bedtimeOffset = config.bedtimeReminderOffsetMinutes.takeUnless { it == AlarmConfig.DEFAULT_BEDTIME_OFFSET }?.toString().orEmpty(),
+                    onlineOffset = if (NumericConfigField.ONLINE_OFFSET in explicitNumericFields) config.onlineOffsetMinutes.toString() else "",
+                    campusOffset = if (NumericConfigField.CAMPUS_OFFSET in explicitNumericFields) config.campusOffsetMinutes.toString() else "",
+                    repeatInterval = if (NumericConfigField.REPEAT_INTERVAL in explicitNumericFields) config.repeatIntervalMinutes.toString() else "",
+                    maxRepeats = if (NumericConfigField.MAX_REPEATS in explicitNumericFields) config.maxRepeats.toString() else "",
+                    sleepDuration = if (NumericConfigField.SLEEP_DURATION in explicitNumericFields) config.targetSleepDurationHours.toString() else "",
+                    bedtimeOffset = if (NumericConfigField.BEDTIME_OFFSET in explicitNumericFields) config.bedtimeReminderOffsetMinutes.toString() else "",
                     bedtimeReminderMode = config.bedtimeReminderMode,
                     bedtimeAbsoluteTime = config.bedtimeReminderAbsoluteTime.toString(),
-                    externalBuffer = config.externalEventBufferMinutes.takeUnless { it == AlarmConfig.DEFAULT_BUFFER_MINUTES }?.toString().orEmpty(),
+                    externalBuffer = if (NumericConfigField.EXTERNAL_BUFFER in explicitNumericFields) config.externalEventBufferMinutes.toString() else "",
+                    explicitNumericFields = explicitNumericFields,
                     externalEnabled = config.externalEventEnabled,
                     externalCalendarIds = config.externalEventCalendarIds,
                     bedtimeEnabled = config.bedtimeEnabled,
@@ -177,27 +192,27 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun updateOnlineOffset(value: String) {
-        _uiState.update { it.copy(onlineOffset = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.ONLINE_OFFSET, value).copy(onlineOffset = value) }
     }
 
     fun updateCampusOffset(value: String) {
-        _uiState.update { it.copy(campusOffset = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.CAMPUS_OFFSET, value).copy(campusOffset = value) }
     }
 
     fun updateRepeatInterval(value: String) {
-        _uiState.update { it.copy(repeatInterval = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.REPEAT_INTERVAL, value).copy(repeatInterval = value) }
     }
 
     fun updateMaxRepeats(value: String) {
-        _uiState.update { it.copy(maxRepeats = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.MAX_REPEATS, value).copy(maxRepeats = value) }
     }
 
     fun updateSleepDuration(value: String) {
-        _uiState.update { it.copy(sleepDuration = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.SLEEP_DURATION, value).copy(sleepDuration = value) }
     }
 
     fun updateBedtimeOffset(value: String) {
-        _uiState.update { it.copy(bedtimeOffset = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.BEDTIME_OFFSET, value).copy(bedtimeOffset = value) }
     }
 
     fun selectBedtimeReminderMode(mode: BedtimeReminderMode) {
@@ -209,7 +224,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun updateExternalBuffer(value: String) {
-        _uiState.update { it.copy(externalBuffer = value) }
+        _uiState.update { it.withNumericInput(NumericConfigField.EXTERNAL_BUFFER, value).copy(externalBuffer = value) }
     }
 
     fun toggleExternalEvents(enabled: Boolean) {
@@ -423,7 +438,7 @@ class SettingsViewModel @Inject constructor(
                 discoveryMode = state.discoveryMode,
                 ringtonePlaylist = currentConfig.ringtonePlaylist
             )
-            alarmRepository.saveConfig(config)
+            datastore.saveConfig(config, state.explicitNumericFields)
             persistDebugConfig(state)
 
             syncUseCase.cancelSync()
