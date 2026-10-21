@@ -314,7 +314,7 @@ class SyncWorker @AssistedInject constructor(
     ): List<TimetableEvent> {
         val events = when (config.discoveryMode) {
             DiscoveryMode.RemoteServer -> {
-                when (val result = timetableClient.fetch()) {
+                when (val result = timetableClient.fetch(targetDateOverride ?: now.atZone(zone).toLocalDate())) {
                     is TimetableClient.Result.Success -> {
                         dataStore.saveTimetable(result.response)
                         dataStore.clearDeviceCalendarEvents()

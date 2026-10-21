@@ -6,6 +6,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.time.Duration
+import java.time.LocalDate
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -45,14 +47,14 @@ class TimetableClient(
         .callTimeout(CONNECT_TIMEOUT)
         .build()
 
-    suspend fun fetch(): Result = try {
+    suspend fun fetch(date: LocalDate? = null): Result = try {
         val remoteServerUrl = remoteServerProvider.remoteServerUrl.first().trim().trimEnd('/')
         if (remoteServerUrl.isEmpty()) {
             Result.Error(
                 IllegalStateException("Timetable remote server URL is not configured")
             )
         } else {
-            val body = withContext(Dispatchers.IO) { httpGet("$remoteServerUrl$PATH") }
+            val body = withContext(Dispatchers.IO) { httpGet(buildTimetableUrl(remoteServerUrl, date)) }
             val response = JsonConfig.instance.decodeFromString<WakeyResponse>(body)
             if (response.schema_version < MIN_SUPPORTED_SCHEMA_VERSION) {
                 Result.Error(
@@ -83,6 +85,17 @@ class TimetableClient(
         const val PATH = "/wakey-sitizen/timetable.json"
         const val MIN_SUPPORTED_SCHEMA_VERSION = 1
         private val CONNECT_TIMEOUT = Duration.ofSeconds(10)
+
+        /**
+         * Builds the timetable URL and, when supplied, adds the server's date-window
+         * query without string-concatenating untrusted URL components.
+         */
+        internal fun buildTimetableUrl(remoteServerUrl: String, date: LocalDate?): String {
+            val url = (remoteServerUrl.trim().trimEnd('/') + PATH).toHttpUrlOrNull()
+                ?: throw IllegalArgumentException("Timetable remote server URL is invalid")
+            return date?.let { url.newBuilder().addQueryParameter("date", it.toString()).build() }?.toString()
+                ?: url.toString()
+        }
     }
 }
 
