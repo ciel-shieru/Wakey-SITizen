@@ -193,8 +193,8 @@ class RingtonePickerViewModelTest {
     @Test
     fun `playlist changes auto-save and trigger a replacement sync after edits settle`() = runTest {
         viewModel.addRingtone("content://autosaved")
-        advanceTimeBy(RingtonePickerViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
-        runCurrent()
+        testDispatcher.scheduler.advanceTimeBy(RingtonePickerViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
+        testDispatcher.scheduler.runCurrent()
 
         val savedConfig = fakeAlarmRepository.savedConfig
         assertNotNull(savedConfig)

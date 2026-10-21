@@ -156,13 +156,13 @@ class SettingsViewModelDebugStateTest {
     @Test
     fun `configuration changes auto-save after edits settle and trigger sync`() = runTest {
         viewModel.updateOnlineOffset("120")
-        advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS - 1)
-        runCurrent()
+        testDispatcher.scheduler.advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS - 1)
+        testDispatcher.scheduler.runCurrent()
         assertNull(alarmRepository.savedConfig)
 
         viewModel.updateOnlineOffset("180")
-        advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
-        runCurrent()
+        testDispatcher.scheduler.advanceTimeBy(SettingsViewModel.AUTO_SAVE_DEBOUNCE_MILLIS)
+        testDispatcher.scheduler.runCurrent()
 
         assertEquals(180, alarmRepository.savedConfig?.onlineOffsetMinutes)
         assertTrue(syncUseCase.syncCalled)
