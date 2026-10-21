@@ -178,10 +178,10 @@ class SystemCalendarSource(
         var index = 0
         while (index < value.length) {
             val current = value[index]
-            if (current == '\\\\' && index + 1 < value.length) {
+            if (current == '\\' && index + 1 < value.length) {
                 when (val escaped = value[index + 1]) {
                     'n', 'N' -> result.append('\n')
-                    ',', ';', '\\\\' -> result.append(escaped)
+                    ',', ';', '\\' -> result.append(escaped)
                     else -> result.append(escaped)
                 }
                 index += 2
