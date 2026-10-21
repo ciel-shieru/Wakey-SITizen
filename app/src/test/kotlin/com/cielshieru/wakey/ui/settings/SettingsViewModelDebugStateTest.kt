@@ -151,26 +151,43 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
-    fun `test alarm schedules one second after press using normal alarm data`() = runTest {
+    fun `test alarm uses selected one-based alarm number and ringtone`() = runTest {
         alarmRepository.saveConfig(
             AlarmConfig(
-                ringtonePlaylist = RingtonePlaylist(listOf("content://alarm-tone"))
+                maxRepeats = 4,
+                ringtonePlaylist = RingtonePlaylist(
+                    listOf(
+                        "content://alarm-one",
+                        "content://alarm-two",
+                        "content://alarm-three",
+                        "content://alarm-four"
+                    )
+                )
             )
         )
         viewModel.toggleDebugMode(true)
 
-        viewModel.testAlarmNow()
+        viewModel.testAlarmNow(1)
+        viewModel.testAlarmNow(3)
 
-        val (alarm, day) = alarmRepository.scheduledAlarms.single()
-        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
-        assertEquals(LocalDate.of(2026, 10, 20), day)
-        assertEquals(com.cielshieru.wakey.android.AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE, alarm.requestCode)
-        assertEquals("content://alarm-tone", alarm.ringtoneUri)
+        assertEquals(2, alarmRepository.scheduledAlarms.size)
+        val (firstAlarm, firstDay) = alarmRepository.scheduledAlarms[0]
+        assertEquals(0, firstAlarm.index)
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), firstAlarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), firstDay)
+        assertEquals(com.cielshieru.wakey.android.AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE, firstAlarm.requestCode)
+        assertEquals("content://alarm-one", firstAlarm.ringtoneUri)
+
+        val (thirdAlarm, thirdDay) = alarmRepository.scheduledAlarms[1]
+        assertEquals(2, thirdAlarm.index)
+        assertEquals("content://alarm-three", thirdAlarm.ringtoneUri)
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), thirdAlarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), thirdDay)
     }
 
     @Test
     fun `test alarm does nothing when debug mode is disabled`() = runTest {
-        viewModel.testAlarmNow()
+        viewModel.testAlarmNow(1)
         assertEquals(0, alarmRepository.scheduledAlarms.size)
     }
 

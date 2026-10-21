@@ -72,7 +72,7 @@ class RingtonePlaylistTest {
     }
 
     @Test
-    fun `shuffle mode uses index as seed for determinism`() {
+    fun `shuffle mode is deterministic for each repeat index`() {
         val uris = listOf("x", "y", "z")
         val playlist = RingtonePlaylist(uris, true)
 
@@ -87,6 +87,25 @@ class RingtonePlaylistTest {
         // Just verify determinism - don't assert specific values since shuffle order depends on implementation
         assertEquals(index3, playlist.ringtoneForRepeatIndex(3))
         assertEquals(index6, playlist.ringtoneForRepeatIndex(6))
+    }
+
+    @Test
+    fun `shuffle mode plays every ringtone once within each cycle`() {
+        val uris = listOf("a", "b", "c")
+        val playlist = RingtonePlaylist(uris, shuffleEnabled = true)
+
+        repeat(5) { cycle ->
+            val played = (cycle * uris.size until (cycle + 1) * uris.size)
+                .mapNotNull(playlist::ringtoneForRepeatIndex)
+
+            assertEquals("Cycle $cycle must include every ringtone", uris.toSet(), played.toSet())
+            assertEquals("Cycle $cycle must not repeat a ringtone", uris.size, played.distinct().size)
+        }
+        val sequence = (0 until (uris.size * 5)).mapNotNull(playlist::ringtoneForRepeatIndex)
+        assertTrue(
+            "A new shuffle cycle should not immediately repeat the previous cycle's last ringtone",
+            sequence.zipWithNext().all { (previous, next) -> previous != next }
+        )
     }
 
     @Test

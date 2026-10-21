@@ -3,6 +3,8 @@ package com.cielshieru.wakey.ui.settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -18,6 +20,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
+import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
@@ -238,6 +241,9 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val savedServerSettings by viewModel.savedServerSettings.collectAsState()
     val context = LocalContext.current
+    var showTestAlarmDialog by remember { mutableStateOf(false) }
+    val testAlarmCount = (uiState.maxRepeats.toIntOrNull() ?: AlarmConfig.DEFAULT_MAX_REPEATS)
+        .coerceIn(1, 20)
 
     LaunchedEffect(Unit) {
         viewModel.configSaved.collect {
@@ -690,7 +696,7 @@ fun SettingsScreen(
 
                 item {
                     Button(
-                        onClick = viewModel::testAlarmNow,
+                        onClick = { showTestAlarmDialog = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Test Alarm Now")
@@ -776,6 +782,39 @@ fun SettingsScreen(
             }
         }
 
+    }
+
+    if (showTestAlarmDialog) {
+        AlertDialog(
+            onDismissRequest = { showTestAlarmDialog = false },
+            title = { Text("Select test alarm number") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    (1..testAlarmCount).forEach { alarmNumber ->
+                        OutlinedButton(
+                            onClick = {
+                                showTestAlarmDialog = false
+                                viewModel.testAlarmNow(alarmNumber)
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Alarm $alarmNumber")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTestAlarmDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

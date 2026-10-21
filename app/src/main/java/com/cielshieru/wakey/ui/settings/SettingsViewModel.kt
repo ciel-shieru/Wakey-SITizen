@@ -247,24 +247,28 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(targetDateMillis = millis) }
     }
 
-    fun testAlarmNow() {
-        if (!_uiState.value.debugModeEnabled) return
+    fun testAlarmNow(alarmNumber: Int) {
+        val state = _uiState.value
+        val maxRepeats = (state.maxRepeats.toIntOrNull() ?: AlarmConfig.DEFAULT_MAX_REPEATS)
+            .coerceIn(1, AlarmService.MAX_ALARMS_PER_DAY)
+        if (!state.debugModeEnabled || alarmNumber !in 1..maxRepeats) return
 
-        // Capture the target before launching the coroutine so dispatch latency
-        // does not shift the meaning of "the next second from button press".
+        // The user-facing alarm number is 1-based; the schedule model is 0-based.
+        val repeatIndex = alarmNumber - 1
         val triggerAt = clock.now().plusSeconds(1)
         val day = triggerAt.atZone(zoneProvider.zone).toLocalDate()
 
         viewModelScope.launch {
             val config = alarmRepository.config.first()
+
             // Use the ordinary schedule model and AlarmService so the test alarm
             // traverses the usual AlarmReceiver and playback-service path.
             alarmRepository.scheduleAlarm(
                 AlarmSchedule.Alarm(
-                    index = 0,
+                    index = repeatIndex,
                     triggerAt = triggerAt,
                     requestCode = AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE,
-                    ringtoneUri = config.ringtonePlaylist.ringtoneForRepeatIndex(0)
+                    ringtoneUri = config.ringtonePlaylist.ringtoneForRepeatIndex(repeatIndex)
                 ),
                 day
             )

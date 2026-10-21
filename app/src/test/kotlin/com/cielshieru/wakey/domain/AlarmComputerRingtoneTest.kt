@@ -132,6 +132,9 @@ class AlarmComputerRingtoneTest {
                 schedules2[0].alarms[i].ringtoneUri
             )
         }
+        val firstCycle = schedules1[0].alarms.mapNotNull { it.ringtoneUri }
+        assertEquals(uris.toSet(), firstCycle.toSet())
+        assertEquals(uris.size, firstCycle.distinct().size)
     }
 
     @Test

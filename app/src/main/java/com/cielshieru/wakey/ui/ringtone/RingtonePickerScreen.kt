@@ -3,11 +3,12 @@ package com.cielshieru.wakey.ui.ringtone
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
+import android.media.Ringtone
 import android.media.RingtoneManager
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
+import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -22,10 +23,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 
@@ -42,6 +50,36 @@ fun RingtonePickerScreen(
     val listState = rememberLazyListState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    val previewSelectedRingtone = remember { mutableStateOf<Ringtone?>(null) }
+
+    DisposableEffect(context) {
+        onDispose {
+            runCatching { previewSelectedRingtone.value?.stop() }
+        }
+    }
+
+    val previewRingtone: (String) -> Unit = { ringtoneUri ->
+        runCatching { previewSelectedRingtone.value?.stop() }
+        previewSelectedRingtone.value = null
+        val ringtone = runCatching {
+            RingtoneManager.getRingtone(context, Uri.parse(ringtoneUri))
+        }.getOrNull()
+
+        if (ringtone == null) {
+            onShowSnackbar("Unable to preview ringtone")
+        } else {
+            val playResult = runCatching {
+                ringtone.isLooping = false
+                ringtone.play()
+            }
+            if (playResult.isSuccess) {
+                previewSelectedRingtone.value = ringtone
+            } else {
+                runCatching { ringtone.stop() }
+                onShowSnackbar("Unable to preview ringtone")
+            }
+        }
+    }
 
     // ACTION_OPEN_DOCUMENT grants a persistable URI permission so user-picked
     // tracks remain playable after the app process is recreated or the device reboots.
@@ -148,6 +186,7 @@ fun RingtonePickerScreen(
                     ringtones = uiState.ringtoneUris,
                     viewModel = viewModel,
                     listState = listState,
+                    onPreviewRingtone = previewRingtone,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -194,10 +233,16 @@ fun RingtonePickerScreen(
 
             Text(
                 text = "${uiState.ringtoneUris.size} / ${RingtonePlaylist.MAX_RINGTONES} ringtones selected",
+                modifier = Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                text = "Tap to preview ringtone. Drag up/down to reorder ringtones in playlist.",
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -207,7 +252,7 @@ fun RingtonePickerScreen(
             onDismissRequest = { showShuffleDialog = false },
             title = { Text("How shuffle works") },
             text = {
-                Text("When shuffle is enabled, each alarm in a day's set will play a different ringtone. The same alarm index always plays the same ringtone, so re-syncing does not change which ringtone is assigned to which alarm.")
+                Text("Shuffle plays each ringtone once per complete playlist cycle before starting a new shuffled cycle. The order is deterministic for each alarm index, so re-syncing does not change the ringtone assigned to an alarm.")
             },
             confirmButton = {
                 TextButton(onClick = { showShuffleDialog = false }) {
@@ -223,16 +268,71 @@ private fun RingtoneList(
     ringtones: List<String>,
     viewModel: RingtonePickerViewModel,
     listState: LazyListState,
+    onPreviewRingtone: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOverIndex by remember { mutableStateOf<Int?>(null) }
+    var draggedOffsetY by remember { mutableFloatStateOf(0f) }
+    var dragPointerY by remember { mutableFloatStateOf(0f) }
+    var autoScrollJob by remember { mutableStateOf<Job?>(null) }
+    var autoScrollDirection by remember { mutableIntStateOf(0) }
+    val scope = rememberCoroutineScope()
+    val edgeThresholdPx = with(LocalDensity.current) { 56.dp.toPx() }
 
-    LaunchedEffect(draggingIndex, dragOverIndex) {
-        if (draggingIndex != null && dragOverIndex != null && draggingIndex != dragOverIndex) {
-            viewModel.reorderRingtones(draggingIndex!!, dragOverIndex!!)
-            draggingIndex = dragOverIndex
+    fun stopAutoScroll() {
+        autoScrollJob?.cancel()
+        autoScrollJob = null
+        autoScrollDirection = 0
+    }
+
+    fun updateDropTarget() {
+        listState.layoutInfo.visibleItemsInfo
+            .firstOrNull { item ->
+                dragPointerY >= item.offset && dragPointerY < item.offset + item.size
+            }
+            ?.let { dragOverIndex = it.index }
+    }
+
+    fun updateAutoScroll(lastDeltaY: Float) {
+        val viewportHeight = listState.layoutInfo.viewportSize.height.toFloat()
+        val direction = when {
+            dragPointerY < edgeThresholdPx && lastDeltaY < 0f -> -1
+            dragPointerY > viewportHeight - edgeThresholdPx && lastDeltaY > 0f -> 1
+            else -> 0
         }
+        if (direction == 0) {
+            stopAutoScroll()
+            return
+        }
+        if (autoScrollDirection == direction && autoScrollJob?.isActive == true) return
+
+        stopAutoScroll()
+        autoScrollDirection = direction
+        autoScrollJob = scope.launch {
+            while (isActive && draggingIndex != null && autoScrollDirection == direction) {
+                listState.scrollBy(20f * direction)
+                updateDropTarget()
+                delay(16L)
+            }
+        }
+    }
+
+    fun resetDrag() {
+        stopAutoScroll()
+        draggingIndex = null
+        dragOverIndex = null
+        draggedOffsetY = 0f
+    }
+
+    fun finishDrag() {
+        val fromIndex = draggingIndex
+        val toIndex = dragOverIndex
+        stopAutoScroll()
+        if (fromIndex != null && toIndex != null && fromIndex != toIndex) {
+            viewModel.reorderRingtones(fromIndex, toIndex)
+        }
+        resetDrag()
     }
 
     LazyColumn(
@@ -241,23 +341,34 @@ private fun RingtoneList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        itemsIndexed(ringtones, key = { index, uri -> "$index-$uri" }) { index, uri ->
+        itemsIndexed(ringtones, key = { _, uri -> uri }) { index, uri ->
             val displayName = viewModel.resolveRingtoneName(uri)
-            AnimatedContent(
-                targetState = uri to index,
-                label = "RingtoneItem"
-            ) { (currentUri, currentIndex) ->
-                RingtoneListItem(
-                    index = currentIndex + 1,
-                    displayName = displayName,
-                    uri = currentUri,
-                    isDragging = draggingIndex == currentIndex,
-                    isDragOver = dragOverIndex == currentIndex,
-                    onRemove = { viewModel.removeRingtone(currentUri) },
-                    onDragStart = { draggingIndex = currentIndex },
-                    onDragOver = { dragOverIndex = currentIndex }
-                )
-            }
+            RingtoneListItem(
+                index = index + 1,
+                displayName = displayName,
+                isDragging = draggingIndex == index,
+                isDragOver = dragOverIndex == index,
+                draggedOffsetY = draggedOffsetY,
+                onPreview = { onPreviewRingtone(uri) },
+                onRemove = { viewModel.removeRingtone(uri) },
+                onDragStart = { startOffset ->
+                    draggingIndex = index
+                    dragOverIndex = index
+                    draggedOffsetY = 0f
+                    val itemOffset = listState.layoutInfo.visibleItemsInfo
+                        .firstOrNull { it.index == index }
+                        ?.offset ?: 0
+                    dragPointerY = itemOffset + startOffset.y
+                },
+                onDrag = { deltaY ->
+                    draggedOffsetY += deltaY
+                    dragPointerY += deltaY
+                    updateDropTarget()
+                    updateAutoScroll(deltaY)
+                },
+                onDragEnd = ::finishDrag,
+                onDragCancel = ::resetDrag
+            )
         }
     }
 }
@@ -266,49 +377,43 @@ private fun RingtoneList(
 private fun RingtoneListItem(
     index: Int,
     displayName: String,
-    uri: String,
     isDragging: Boolean,
     isDragOver: Boolean,
+    draggedOffsetY: Float,
+    onPreview: () -> Unit,
     onRemove: () -> Unit,
-    onDragStart: () -> Unit,
-    onDragOver: () -> Unit
+    onDragStart: (Offset) -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
 ) {
-    var offsetXPx by remember { mutableIntStateOf(0) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (isDragOver) {
-                    Modifier.background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f))
-                } else {
-                    Modifier
-                }
-            )
-            .offset { IntOffset(offsetXPx, 0) }
-            .composed {
-                Modifier.pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { onDragStart() },
-                        onDragEnd = {
-                            offsetXPx = 0
-                        },
-                        onDragCancel = {
-                            offsetXPx = 0
-                        }
-                    ) { change, dragAmount ->
-                        change.consume()
-                        offsetXPx += dragAmount.x.toInt()
-                    }
+            .offset {
+                IntOffset(
+                    x = 0,
+                    y = if (isDragging) draggedOffsetY.roundToInt() else 0
+                )
+            }
+            .zIndex(if (isDragging) 1f else 0f)
+            .pointerInput(index, displayName) {
+                detectDragGestures(
+                    onDragStart = onDragStart,
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel
+                ) { change, dragAmount ->
+                    change.consume()
+                    onDrag(dragAmount.y)
                 }
             }
-            .pointerInput(isDragOver) {
-                if (isDragOver) {
-                    detectTapGestures(onTap = { onDragOver() })
-                }
-            },
+            .clickable(onClick = onPreview),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDragging) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = when {
+                isDragging -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                isDragOver -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            }
         )
     ) {
         Row(
@@ -319,7 +424,7 @@ private fun RingtoneListItem(
         ) {
             Icon(
                 Icons.Default.DragIndicator,
-                contentDescription = "Drag to reorder",
+                contentDescription = "Drag up or down to reorder",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
@@ -328,7 +433,7 @@ private fun RingtoneListItem(
             Text(
                 text = "$index. $displayName",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.weight(1f)
             )
 
             IconButton(onClick = onRemove) {
@@ -341,3 +446,4 @@ private fun RingtoneListItem(
         }
     }
 }
+
