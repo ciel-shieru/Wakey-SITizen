@@ -27,12 +27,15 @@ import com.cielshieru.wakey.domain.port.AlarmRepository
 import com.cielshieru.wakey.domain.port.Clock
 import com.cielshieru.wakey.domain.port.ZoneProvider
 import com.cielshieru.wakey.domain.port.PermissionChecker
-import androidx.work.ExistingPeriodicWorkPolicy
 import com.cielshieru.wakey.usecase.SyncOperations
 import com.cielshieru.wakey.usecase.SyncUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -123,6 +126,12 @@ class SettingsViewModel @Inject constructor(
     private val serverStatusClient: ServerStatusClient = ServerStatusClient()
 ) : ViewModel() {
 
+    companion object {
+        const val AUTO_SAVE_DEBOUNCE_MILLIS = 400L
+    }
+
+    private var autoSaveJob: Job? = null
+    private val configSaveMutex = Mutex()
     private var hasLoadedInitialConfig = false
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -130,9 +139,6 @@ class SettingsViewModel @Inject constructor(
 
     private val _savedServerSettings = MutableStateFlow(SavedServerSettings())
     val savedServerSettings: StateFlow<SavedServerSettings> = _savedServerSettings.asStateFlow()
-
-    private val _configSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val configSaved: SharedFlow<Unit> = _configSaved
 
     private val _syncEvent = MutableSharedFlow<SyncEvent>(extraBufferCapacity = 1)
     val syncEvent: SharedFlow<SyncEvent> = _syncEvent
@@ -193,46 +199,57 @@ class SettingsViewModel @Inject constructor(
 
     fun updateOnlineOffset(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.ONLINE_OFFSET, value).copy(onlineOffset = value) }
+        scheduleAutoSave()
     }
 
     fun updateCampusOffset(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.CAMPUS_OFFSET, value).copy(campusOffset = value) }
+        scheduleAutoSave()
     }
 
     fun updateRepeatInterval(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.REPEAT_INTERVAL, value).copy(repeatInterval = value) }
+        scheduleAutoSave()
     }
 
     fun updateMaxRepeats(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.MAX_REPEATS, value).copy(maxRepeats = value) }
+        scheduleAutoSave()
     }
 
     fun updateSleepDuration(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.SLEEP_DURATION, value).copy(sleepDuration = value) }
+        scheduleAutoSave()
     }
 
     fun updateBedtimeOffset(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.BEDTIME_OFFSET, value).copy(bedtimeOffset = value) }
+        scheduleAutoSave()
     }
 
     fun selectBedtimeReminderMode(mode: BedtimeReminderMode) {
         _uiState.update { it.copy(bedtimeReminderMode = mode) }
+        scheduleAutoSave()
     }
 
     fun updateBedtimeAbsoluteTime(value: String) {
         _uiState.update { it.copy(bedtimeAbsoluteTime = value) }
+        scheduleAutoSave()
     }
 
     fun updateExternalBuffer(value: String) {
         _uiState.update { it.withNumericInput(NumericConfigField.EXTERNAL_BUFFER, value).copy(externalBuffer = value) }
+        scheduleAutoSave()
     }
 
     fun toggleExternalEvents(enabled: Boolean) {
         _uiState.update { it.copy(externalEnabled = enabled) }
+        scheduleAutoSave()
     }
 
     fun toggleBedtimeEnabled(enabled: Boolean) {
         _uiState.update { it.copy(bedtimeEnabled = enabled) }
+        scheduleAutoSave()
     }
 
     fun toggleDebugMode(enabled: Boolean) {
@@ -241,10 +258,12 @@ class SettingsViewModel @Inject constructor(
         } else {
             _uiState.update { it.copy(debugModeEnabled = true) }
         }
+        scheduleAutoSave()
     }
 
     fun setTargetDate(millis: Long?) {
         _uiState.update { it.copy(targetDateMillis = millis) }
+        scheduleAutoSave()
     }
 
     fun testAlarmNow(alarmNumber: Int) {
@@ -294,10 +313,12 @@ class SettingsViewModel @Inject constructor(
         // Keep device-calendar selections and READ_CALENDAR permission state when the
         // user temporarily switches to Remote Server and back.
         _uiState.update { it.copy(discoveryMode = mode) }
+        scheduleAutoSave()
     }
 
     fun updateRemoteServerUrl(value: String) {
         _uiState.update { it.copy(remoteServerUrl = value) }
+        scheduleAutoSave()
     }
 
     fun setPermissionGranted(permissionName: String, granted: Boolean) {
@@ -386,6 +407,7 @@ class SettingsViewModel @Inject constructor(
                 onlineCalendarPicker = it.onlineCalendarPicker.copy(selectedId = id)
             )
         }
+        scheduleAutoSave()
     }
 
     fun selectCampusCalendar(id: String?) {
@@ -394,6 +416,7 @@ class SettingsViewModel @Inject constructor(
                 campusCalendarPicker = it.campusCalendarPicker.copy(selectedId = id)
             )
         }
+        scheduleAutoSave()
     }
 
     fun toggleExternalEventCalendar(calendarId: String) {
@@ -411,11 +434,32 @@ class SettingsViewModel @Inject constructor(
                 )
             )
         }
+        scheduleAutoSave()
     }
 
     fun saveConfig() {
-        viewModelScope.launch {
-            val state = _uiState.value
+        autoSaveJob?.cancel()
+        viewModelScope.launch { persistConfig(_uiState.value) }
+    }
+
+    suspend fun flushPendingAutoSave() {
+        val pending = autoSaveJob
+        if (pending?.isActive == true) {
+            pending.cancelAndJoin()
+            persistConfig(_uiState.value)
+        }
+    }
+
+    private fun scheduleAutoSave() {
+        autoSaveJob?.cancel()
+        autoSaveJob = viewModelScope.launch {
+            delay(AUTO_SAVE_DEBOUNCE_MILLIS)
+            persistConfig(_uiState.value)
+        }
+    }
+
+    private suspend fun persistConfig(state: SettingsUiState) = configSaveMutex.withLock {
+            val currentConfig = alarmRepository.config.first()
             val currentConfig = alarmRepository.config.first()
             val selectedCalendarIds = buildList {
                 state.onlineCalendarPicker.selectedId?.let { add(it) }
@@ -445,17 +489,15 @@ class SettingsViewModel @Inject constructor(
             alarmRepository.saveConfig(config, state.explicitNumericFields)
             persistDebugConfig(state)
 
-            syncUseCase.cancelSync()
-            syncUseCase.schedulePeriodicSync(ExistingPeriodicWorkPolicy.KEEP)
+            // REPLACE in SyncUseCase cancels any older config-triggered immediate run.
+            // Periodic and boot recovery work remain scheduled.
             syncUseCase.syncImmediately(SyncUseCase.UNIQUE_IMMEDIATE_SYNC)
             _syncEvent.emit(
                 SyncEvent.SyncTriggered(
-                    source = "Settings save",
+                    source = "Settings auto-save",
                     mode = "immediate"
                 )
             )
-            _configSaved.emit(Unit)
-        }
     }
 
     fun fetchServerStatus() {

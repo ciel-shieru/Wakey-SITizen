@@ -1,5 +1,6 @@
 package com.cielshieru.wakey.ui.ringtone
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
@@ -48,6 +49,8 @@ fun RingtonePickerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val event by viewModel.event.collectAsState()
     val listState = rememberLazyListState()
+
+    BackHandler(onBack = viewModel::exit)
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val previewSelectedRingtone = remember { mutableStateOf<Ringtone?>(null) }
@@ -130,13 +133,8 @@ fun RingtonePickerScreen(
             TopAppBar(
                 title = { Text("Ringtone Playlist") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = viewModel::exit) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = viewModel::save) {
-                        Text("Save")
                     }
                 }
             )
@@ -147,6 +145,13 @@ fun RingtonePickerScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            Text(
+                "Changes save automatically. Alarm schedules refresh after edits settle.",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
