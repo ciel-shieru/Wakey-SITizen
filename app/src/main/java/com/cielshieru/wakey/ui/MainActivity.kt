@@ -16,9 +16,18 @@ import com.cielshieru.wakey.ui.navigation.WakeyNavHost
 import com.cielshieru.wakey.ui.settings.SettingsViewModel
 import com.cielshieru.wakey.ui.theme.WakeySitizenTheme
 import dagger.hilt.android.AndroidEntryPoint
+import com.cielshieru.wakey.usecase.SyncOperations
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject lateinit var syncOperations: SyncOperations
+
+    override fun onStart() {
+        super.onStart()
+        syncOperations.syncImmediately("sync_foreground")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
