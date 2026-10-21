@@ -63,7 +63,7 @@ class DebugLogger(
     fun logAlarmSet(day: LocalDate, alarm: AlarmSchedule.Alarm,
                     eventTitle: String?) {
         if (!debugModeEnabled) return
-        Log.d(TAG, "[Alarm] Set day=$day index=${alarm.index} " +
+        Log.d(TAG, "[Alarm] Set day=$day number=${alarm.index + 1} " +
             "requestCode=${alarm.requestCode} triggerAt=${alarm.triggerAt} " +
             "event=\"$eventTitle\"")
     }

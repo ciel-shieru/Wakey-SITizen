@@ -159,7 +159,7 @@ class SettingsViewModelDebugStateTest {
         )
         viewModel.toggleDebugMode(true)
 
-        viewModel.testAlarmNow()
+        viewModel.testAlarmNow(1)
 
         val (alarm, day) = alarmRepository.scheduledAlarms.single()
         assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
@@ -169,8 +169,41 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
+    fun `test alarm schedules the selected one-based alarm and its ringtone`() = runTest {
+        alarmRepository.saveConfig(
+            AlarmConfig(
+                maxRepeats = 4,
+                ringtonePlaylist = RingtonePlaylist(
+                    listOf("content://alarm-one", "content://alarm-two", "content://alarm-three", "content://alarm-four")
+                )
+            )
+        )
+        viewModel.updateMaxRepeats("4")
+        viewModel.toggleDebugMode(true)
+
+        viewModel.testAlarmNow(3)
+
+        val (alarm, day) = alarmRepository.scheduledAlarms.single()
+        assertEquals(2, alarm.index)
+        assertEquals("content://alarm-three", alarm.ringtoneUri)
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), day)
+    }
+
+    @Test
+    fun `test alarm rejects a number above configured max repeats`() = runTest {
+        alarmRepository.saveConfig(AlarmConfig(maxRepeats = 4))
+        viewModel.updateMaxRepeats("4")
+        viewModel.toggleDebugMode(true)
+
+        viewModel.testAlarmNow(5)
+
+        assertEquals(0, alarmRepository.scheduledAlarms.size)
+    }
+
+    @Test
     fun `test alarm does nothing when debug mode is disabled`() = runTest {
-        viewModel.testAlarmNow()
+        viewModel.testAlarmNow(1)
         assertEquals(0, alarmRepository.scheduledAlarms.size)
     }
 

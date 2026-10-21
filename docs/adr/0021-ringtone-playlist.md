@@ -64,9 +64,9 @@ data class RingtonePlaylist(
     fun ringtoneForRepeatIndex(index: Int): String? {
         if (ringtoneUris.isEmpty()) return null
         return if (shuffleEnabled) {
-            val seed = index.toLong()
-            val shuffled = ringtoneUris.shuffled(seed)
-            shuffled[index % ringtoneUris.size]
+            val cycle = index / ringtoneUris.size
+            val position = index % ringtoneUris.size
+            shuffledCycle(cycle)[position]
         } else {
             ringtoneUris[index % ringtoneUris.size]
         }
@@ -88,7 +88,7 @@ A new navigation route `Route.RingtonePicker` will be added to `WakeyNavHost.kt`
 
 A dedicated `RingtonePlaylist` type encapsulates the playlist semantics (shuffle, index-based selection, max size) in one place. This keeps the logic testable and isolated from both the configuration store and the UI. It also makes the contract explicit: a playlist is a list of URIs plus a shuffle flag, nothing more.
 
-The `ringtoneForRepeatIndex(index)` method is pure (no I/O, no state mutation) and deterministic — it takes an index and returns a URI. This is critical because `AlarmComputer` is a pure computation function that receives a `Clock` and `ZoneProvider` but no mutable state. The method uses `index % size` for linear mode (cycling through the playlist) and `Random(index)`-seeded shuffle for randomized mode, ensuring the same index always produces the same ringtone regardless of when the schedule is computed.
+The `ringtoneForRepeatIndex(index)` method is pure (no I/O, no state mutation) and deterministic — it takes an index and returns a URI. This is critical because `AlarmComputer` is a pure computation function that receives a `Clock` and `ZoneProvider` but no mutable state. The method uses `index % size` for linear mode (cycling through the playlist) and a cycle-seeded shuffle for randomized mode, ensuring each full cycle plays every ringtone exactly once and the same index maps to the same ringtone across schedule computations.
 
 ### Why extend AlarmSchedule.Alarm with ringtoneUri (Option A detail)
 
@@ -126,16 +126,17 @@ Android's `RingtoneManager` provides access to the device's ringtone library thr
 
 This avoids bundling audio files (which increases APK size and requires user management of custom files) and avoids storing audio data in the app's private storage (which would be lost on uninstall and is unnecessary when the system already manages ringtones).
 
-### Why shuffle uses deterministic Random(index) (Option A detail)
+### Why shuffle uses deterministic Random(cycle index) (Option A detail)
 
-When shuffle is enabled, the ringtone at index `i` must be the same every time the schedule is computed. This is achieved by seeding `java.util.Random` with `index`:
+When shuffle is enabled, every complete playlist cycle must play each ringtone exactly once. For repeat index `i` and playlist size `n`, the cycle is `i / n` and the position within that cycle is `i % n`. The cycle number seeds the shuffle. If a new cycle would start with the previous cycle's final ringtone, the first two entries are swapped to avoid an immediate boundary repeat (when the playlist has at least two entries).
 
 ```kotlin
-val shuffled = ringtoneUris.shuffled(seed)
-shuffled[index % ringtoneUris.size]
+val cycle = index / ringtoneUris.size
+val position = index % ringtoneUris.size
+shuffledCycle(cycle)[position]
 ```
 
-`List.shuffled(seed)` produces a deterministic permutation for a given seed. Since the seed is the index, the same index always maps to the same ringtone. This is different from a single shuffle applied to the entire playlist (which would produce a fixed permutation for all indices) — instead, each index independently selects a ringtone in a way that feels randomized but is reproducible.
+The same cycle always produces the same permutation, so recomputing a schedule preserves ringtone assignments. Unlike seeding a new permutation with every alarm index, this prevents repeats within a cycle. A ringtone may appear again at the start of a later cycle only after each ringtone in the previous cycle has played.
 
 ### Why MAX_RINGTONES = 20
 

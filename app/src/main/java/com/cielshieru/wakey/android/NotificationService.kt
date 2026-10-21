@@ -67,7 +67,7 @@ object NotificationService {
         ringtoneUri: String? = null
     ): Notification {
         val contentText = if (alarmIndex != null && alarmDay != null) {
-            "Alarm $alarmIndex for $alarmDay is ringing now."
+            "Alarm ${alarmIndex + 1} for $alarmDay is ringing now."
         } else {
             "Your alarm is ringing now."
         }
