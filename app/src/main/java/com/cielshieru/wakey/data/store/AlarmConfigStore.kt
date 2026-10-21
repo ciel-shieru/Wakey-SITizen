@@ -35,6 +35,7 @@ object AlarmConfigStore {
     private val CAMPUS_CALENDAR_ID = stringPreferencesKey("campus_calendar_id")
     private val EXTERNAL_EVENT_CALENDAR_IDS = stringPreferencesKey("external_event_calendar_ids")
     private val RINGTONE_PLAYLIST = stringPreferencesKey("ringtone_playlist")
+    private val EXPLICIT_NUMERIC_FIELDS = stringPreferencesKey("explicit_numeric_fields")
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -79,14 +80,25 @@ object AlarmConfigStore {
     }
 
     fun Flow<Preferences>.explicitNumericConfigFieldsFlow(): Flow<Set<NumericConfigField>> = map { prefs ->
-        buildSet {
-            if (prefs.contains(ONLINE_OFFSET)) add(NumericConfigField.ONLINE_OFFSET)
-            if (prefs.contains(CAMPUS_OFFSET)) add(NumericConfigField.CAMPUS_OFFSET)
-            if (prefs.contains(REPEAT_INTERVAL)) add(NumericConfigField.REPEAT_INTERVAL)
-            if (prefs.contains(MAX_REPEATS)) add(NumericConfigField.MAX_REPEATS)
-            if (prefs.contains(SLEEP_DURATION)) add(NumericConfigField.SLEEP_DURATION)
-            if (prefs.contains(BEDTIME_OFFSET)) add(NumericConfigField.BEDTIME_OFFSET)
-            if (prefs.contains(BUFFER_MINUTES)) add(NumericConfigField.EXTERNAL_BUFFER)
+        if (prefs.contains(EXPLICIT_NUMERIC_FIELDS)) {
+            prefs[EXPLICIT_NUMERIC_FIELDS]
+                .orEmpty()
+                .split(",")
+                .mapNotNull { field -> runCatching { NumericConfigField.valueOf(field) }.getOrNull() }
+                .toSet()
+        } else {
+            // Before explicit_numeric_fields was introduced, every settings save
+            // wrote all numeric values. Infer only non-default legacy values;
+            // old installations cannot reliably distinguish typed defaults.
+            buildSet {
+                if ((prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET) != AlarmConfig.DEFAULT_ONLINE_OFFSET) add(NumericConfigField.ONLINE_OFFSET)
+                if ((prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET) != AlarmConfig.DEFAULT_CAMPUS_OFFSET) add(NumericConfigField.CAMPUS_OFFSET)
+                if ((prefs[REPEAT_INTERVAL] ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL) != AlarmConfig.DEFAULT_REPEAT_INTERVAL) add(NumericConfigField.REPEAT_INTERVAL)
+                if ((prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS) != AlarmConfig.DEFAULT_MAX_REPEATS) add(NumericConfigField.MAX_REPEATS)
+                if ((prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION) != AlarmConfig.DEFAULT_SLEEP_DURATION) add(NumericConfigField.SLEEP_DURATION)
+                if ((prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET) != AlarmConfig.DEFAULT_BEDTIME_OFFSET) add(NumericConfigField.BEDTIME_OFFSET)
+                if ((prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES) != AlarmConfig.DEFAULT_BUFFER_MINUTES) add(NumericConfigField.EXTERNAL_BUFFER)
+            }
         }
     }
 
@@ -163,6 +175,9 @@ object AlarmConfigStore {
                 DiscoveryMode.DeviceCalendar -> "device_calendar"
                 DiscoveryMode.RemoteServer -> "remote_server"
             }
+            prefs[EXPLICIT_NUMERIC_FIELDS] = explicitlyConfiguredNumericFields
+                .sortedBy { it.ordinal }
+                .joinToString(",") { it.name }
             prefs[RINGTONE_PLAYLIST] = json.encodeToString(RingtonePlaylist.serializer(), config.ringtonePlaylist)
         }
     }
