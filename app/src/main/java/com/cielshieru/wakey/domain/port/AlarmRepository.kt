@@ -20,6 +20,7 @@ interface AlarmRepository {
     suspend fun cancelAlarm(requestCode: Int)
     suspend fun scheduleAlarm(alarm: AlarmSchedule.Alarm, day: LocalDate)
     suspend fun dismissAlarmsForDay(day: LocalDate)
+    suspend fun clearDismissalForDay(day: LocalDate)
     val debugConfig: Flow<DebugConfig>
     suspend fun saveDebugConfig(config: DebugConfig)
 }
