@@ -20,6 +20,7 @@ import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import com.cielshieru.wakey.domain.port.AlarmRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -40,6 +41,13 @@ class AlarmRepositoryImpl(
 
     override suspend fun saveConfig(config: AlarmConfig) {
         datastore.saveConfig(config)
+    }
+
+    override suspend fun saveConfig(
+        config: AlarmConfig,
+        explicitlyConfiguredNumericFields: Set<NumericConfigField>
+    ) {
+        datastore.saveConfig(config, explicitlyConfiguredNumericFields)
     }
 
     override val overrides: Flow<List<ManualOverride>> = datastore.data.overridesFlow()
