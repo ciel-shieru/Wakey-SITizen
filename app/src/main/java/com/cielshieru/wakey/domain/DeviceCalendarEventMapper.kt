@@ -21,13 +21,14 @@ object DeviceCalendarEventMapper {
             campusCalendarId != null && event.calendarId == campusCalendarId -> EventKind.CAMPUS
             else -> EventKind.CAMPUS
         }
+        val title = event.peopleSoftTitle?.takeIf { it.isNotBlank() } ?: event.title
         TimetableEvent(
-            courseCode = "cal-${event.title.hashCode().toString(16)}",
-            title = event.title,
-            summary = event.title,
+            courseCode = event.peopleSoftCourseCode?.takeIf { it.isNotBlank() }.orEmpty(),
+            title = title,
+            summary = title,
             dtstart = event.dtstart,
             dtend = event.dtend,
-            location = if (eventKind == EventKind.ONLINE) "Online" else "",
+            location = event.location,
             eventType = eventKind
         )
     }
