@@ -18,10 +18,15 @@ import com.cielshieru.wakey.fakes.FakeZoneProvider
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -42,6 +47,7 @@ class SettingsViewModelDebugStateTest {
     private lateinit var alarmRepository: FakeAlarmRepository
     private lateinit var permissionChecker: PermissionChecker
     private lateinit var dataStore: DataStore<Preferences>
+    private lateinit var dataStoreScope: CoroutineScope
     private lateinit var testFile: File
     private lateinit var syncUseCase: FakeSyncUseCase
     private lateinit var viewModel: SettingsViewModel
@@ -62,7 +68,11 @@ class SettingsViewModelDebugStateTest {
 
         testFile = File("/tmp/test_debug_datastore_${System.nanoTime()}.preferences_pb")
         testFile.delete()
-        dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
+        dataStoreScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        dataStore = PreferenceDataStoreFactory.create(
+            scope = dataStoreScope,
+            produceFile = { testFile }
+        )
 
         syncUseCase = FakeSyncUseCase()
         clock = FakeClock().apply { set(Instant.parse("2026-10-20T05:46:40Z")) }
@@ -81,6 +91,9 @@ class SettingsViewModelDebugStateTest {
     @After
     fun tearDown() {
         viewModel.viewModelScope.cancel()
+        runBlocking {
+            dataStoreScope.coroutineContext[Job]?.cancelAndJoin()
+        }
         Dispatchers.resetMain()
         testFile.delete()
     }
