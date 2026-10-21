@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
+import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
+import com.cielshieru.wakey.data.store.NumericConfigField
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
@@ -34,6 +36,43 @@ class AlarmConfigStoreRingtoneTest {
         assertEquals(uris, loaded.ringtonePlaylist.ringtoneUris)
         assertTrue(loaded.ringtonePlaylist.shuffleEnabled)
 
+        testFile.delete()
+    }
+
+
+    @Test
+    fun `explicitly saved default numeric value remains configured`() = runTest {
+        val testFile = File("/tmp/test_explicit_default_${System.nanoTime()}.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
+
+        dataStore.saveConfig(
+            AlarmConfig(),
+            explicitlyConfiguredNumericFields = setOf(NumericConfigField.ONLINE_OFFSET)
+        )
+
+        val loaded = dataStore.data.configFlow().first()
+        val explicitFields = dataStore.data.explicitNumericConfigFieldsFlow().first()
+
+        assertEquals(AlarmConfig.DEFAULT_ONLINE_OFFSET, loaded.onlineOffsetMinutes)
+        assertEquals(setOf(NumericConfigField.ONLINE_OFFSET), explicitFields)
+        testFile.delete()
+    }
+
+    @Test
+    fun `blank numeric settings are not persisted as explicit choices`() = runTest {
+        val testFile = File("/tmp/test_unconfigured_numeric_${System.nanoTime()}.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
+
+        dataStore.saveConfig(
+            AlarmConfig(),
+            explicitlyConfiguredNumericFields = emptySet()
+        )
+
+        val loaded = dataStore.data.configFlow().first()
+        val explicitFields = dataStore.data.explicitNumericConfigFieldsFlow().first()
+
+        assertEquals(AlarmConfig.DEFAULT_ONLINE_OFFSET, loaded.onlineOffsetMinutes)
+        assertTrue(explicitFields.isEmpty())
         testFile.delete()
     }
 
