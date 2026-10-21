@@ -149,11 +149,14 @@ class SettingsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            // Settings UI state is intentionally initialized only once. Read the
+            // explicitness metadata once rather than keeping another DataStore
+            // collection active for the lifetime of the screen.
+            val explicitNumericFields = datastore.data.explicitNumericConfigFieldsFlow().first()
             combine(
                 alarmRepository.config,
-                alarmRepository.debugConfig,
-                datastore.data.explicitNumericConfigFieldsFlow()
-            ) { config, debug, explicitNumericFields ->
+                alarmRepository.debugConfig
+            ) { config, debug ->
                 val onlineId = config.onlineCalendarId
                 val campusId = config.campusCalendarId
 
