@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
-import com.cielshieru.wakey.data.store.NumericConfigField
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import com.cielshieru.wakey.data.store.AlarmConfigStore.saveConfig
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
