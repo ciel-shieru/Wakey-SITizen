@@ -3,7 +3,8 @@ package com.cielshieru.wakey.ui.ringtone
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
-import android.media.Ringtone
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -50,34 +51,66 @@ fun RingtonePickerScreen(
     val listState = rememberLazyListState()
 
     val context = androidx.compose.ui.platform.LocalContext.current
-    val previewSelectedRingtone = remember { mutableStateOf<Ringtone?>(null) }
+    val previewPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
 
-    DisposableEffect(context) {
-        onDispose {
-            runCatching { previewSelectedRingtone.value?.stop() }
+    fun stopPreview() {
+        val current = previewPlayer.value
+        previewPlayer.value = null
+        if (current != null) {
+            runCatching { current.setOnPreparedListener(null) }
+            runCatching { current.setOnCompletionListener(null) }
+            runCatching { current.setOnErrorListener(null) }
+            runCatching { current.stop() }
+            runCatching { current.release() }
         }
     }
 
-    val previewRingtone: (String) -> Unit = { ringtoneUri ->
-        runCatching { previewSelectedRingtone.value?.stop() }
-        previewSelectedRingtone.value = null
-        val ringtone = runCatching {
-            RingtoneManager.getRingtone(context, Uri.parse(ringtoneUri))
-        }.getOrNull()
+    DisposableEffect(context) {
+        onDispose { stopPreview() }
+    }
 
-        if (ringtone == null) {
+    val previewRingtone: (String) -> Unit = { ringtoneUri ->
+        // Match the working alarm playback path: system-bundled ringtone URIs
+        // are opened directly by MediaPlayer with USAGE_ALARM audio attributes.
+        stopPreview()
+        val player = MediaPlayer()
+        previewPlayer.value = player
+
+        try {
+            player.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            player.isLooping = false
+            player.setOnPreparedListener { prepared ->
+                if (previewPlayer.value === prepared) {
+                    prepared.start()
+                } else {
+                    runCatching { prepared.release() }
+                }
+            }
+            player.setOnCompletionListener { completed ->
+                if (previewPlayer.value === completed) {
+                    previewPlayer.value = null
+                    completed.release()
+                }
+            }
+            player.setOnErrorListener { failed, _, _ ->
+                if (previewPlayer.value === failed) {
+                    previewPlayer.value = null
+                    runCatching { failed.release() }
+                    onShowSnackbar("Unable to preview ringtone")
+                }
+                true
+            }
+            player.setDataSource(context, Uri.parse(ringtoneUri))
+            player.prepareAsync()
+        } catch (_: Exception) {
+            if (previewPlayer.value === player) previewPlayer.value = null
+            runCatching { player.release() }
             onShowSnackbar("Unable to preview ringtone")
-        } else {
-            val playResult = runCatching {
-                ringtone.isLooping = false
-                ringtone.play()
-            }
-            if (playResult.isSuccess) {
-                previewSelectedRingtone.value = ringtone
-            } else {
-                runCatching { ringtone.stop() }
-                onShowSnackbar("Unable to preview ringtone")
-            }
         }
     }
 
