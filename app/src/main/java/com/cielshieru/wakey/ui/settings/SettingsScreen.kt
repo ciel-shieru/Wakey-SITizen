@@ -29,6 +29,34 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
+private fun DefaultNumberTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    defaultValue: Int,
+    min: Int,
+    max: Int,
+    validationLabel: String
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text("$defaultValue (default)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            supportingText = {
+                ValidationSupportingText(value, min, max, validationLabel)
+            }
+        )
+    }
+}
+
+@Composable
 private fun ValidationSupportingText(
     value: String,
     min: Int,
@@ -320,24 +348,26 @@ fun SettingsScreen(
             }
 
             item {
-                OutlinedTextField(
+                DefaultNumberTextField(
                     value = uiState.onlineOffset,
                     onValueChange = viewModel::updateOnlineOffset,
-                    placeholder = { Text("60") },
-                    label = { Text("Online offset (minutes)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
+                    label = "Online offset (minutes)",
+                    defaultValue = 60,
+                    min = 1,
+                    max = 720,
+                    validationLabel = "Online offset"
                 )
             }
 
             item {
-                OutlinedTextField(
+                DefaultNumberTextField(
                     value = uiState.campusOffset,
                     onValueChange = viewModel::updateCampusOffset,
-                    placeholder = { Text("90") },
-                    label = { Text("Campus offset (minutes)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
+                    label = "Campus offset (minutes)",
+                    defaultValue = 90,
+                    min = 1,
+                    max = 720,
+                    validationLabel = "Campus offset"
                 )
             }
 
@@ -420,24 +450,26 @@ fun SettingsScreen(
             }
 
             item {
-                OutlinedTextField(
+                DefaultNumberTextField(
                     value = uiState.repeatInterval,
                     onValueChange = viewModel::updateRepeatInterval,
-                    placeholder = { Text("5") },
-                    label = { Text("Repeat interval (minutes, 1-30)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
+                    label = "Repeat interval (minutes, 1-30)",
+                    defaultValue = 5,
+                    min = 1,
+                    max = 30,
+                    validationLabel = "Repeat interval"
                 )
             }
 
             item {
-                OutlinedTextField(
+                DefaultNumberTextField(
                     value = uiState.maxRepeats,
                     onValueChange = viewModel::updateMaxRepeats,
-                    placeholder = { Text("6") },
-                    label = { Text("Max repeats (1-20)") },
-                    singleLine = true,
-                    supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
+                    label = "Max repeats (1-20)",
+                    defaultValue = 6,
+                    min = 1,
+                    max = 20,
+                    validationLabel = "Max repeats"
                 )
             }
 
@@ -471,13 +503,14 @@ fun SettingsScreen(
                     }
 
                     if (uiState.bedtimeReminderMode == BedtimeReminderMode.Relative) {
-                        OutlinedTextField(
+                        DefaultNumberTextField(
                             value = uiState.bedtimeOffset,
                             onValueChange = viewModel::updateBedtimeOffset,
-                            placeholder = { Text("30") },
-                            label = { Text("Reminder before bedtime (minutes, 5-1440)") },
-                            singleLine = true,
-                            supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 1440, "Bedtime offset") }
+                            label = "Reminder before bedtime (minutes, 5-1440)",
+                            defaultValue = 30,
+                            min = 5,
+                            max = 1440,
+                            validationLabel = "Bedtime offset"
                         )
                     } else {
                         OutlinedTextField(
@@ -490,13 +523,14 @@ fun SettingsScreen(
                         )
                     }
 
-                    OutlinedTextField(
+                    DefaultNumberTextField(
                         value = uiState.sleepDuration,
                         onValueChange = viewModel::updateSleepDuration,
-                        placeholder = { Text("8") },
-                        label = { Text("Target sleep (hours, 1-24)") },
-                        singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 1, 24, "Target sleep") }
+                        label = "Target sleep (hours, 1-24)",
+                        defaultValue = 8,
+                        min = 1,
+                        max = 24,
+                        validationLabel = "Target sleep"
                     )
                 }
 
@@ -572,13 +606,14 @@ fun SettingsScreen(
 
             if (uiState.externalEnabled) {
                 item {
-                    OutlinedTextField(
+                    DefaultNumberTextField(
                         value = uiState.externalBuffer,
                         onValueChange = viewModel::updateExternalBuffer,
-                        placeholder = { Text("30") },
-                        label = { Text("Buffer minutes (1-720)") },
-                        singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 1, 720, "Buffer") }
+                        label = "Buffer minutes (1-720)",
+                        defaultValue = 30,
+                        min = 1,
+                        max = 720,
+                        validationLabel = "Buffer"
                     )
                 }
 
