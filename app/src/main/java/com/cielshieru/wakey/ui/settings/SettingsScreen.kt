@@ -722,6 +722,14 @@ private fun formatServerFetchTime(value: String?): String {
     }.getOrDefault(value)
 }
 
+private fun formatServerStatus(value: String): String = when (value.lowercase()) {
+    "running" -> "Running"
+    "finished" -> "Finished"
+    "successful" -> "Successful"
+    "failed" -> "Failed"
+    else -> "Unknown"
+}
+
 private fun formatFingerprint(value: String): String =
     value.chunked(16).joinToString(" ")
 
@@ -730,6 +738,8 @@ private fun RemoteServerStatusCard(
     state: SettingsUiState,
     onRefresh: () -> Unit
 ) {
+    var detailsExpanded by remember { mutableStateOf(false) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -759,37 +769,54 @@ private fun RemoteServerStatusCard(
                     text = "Last fetch job: ${formatServerFetchTime(status.last_fetch_job_time)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Text(
+                    text = "Job status: ${formatServerStatus(status.job_status)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "IN4SIT: ${formatServerStatus(status.last_status_in4sit)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "xSITe: ${formatServerStatus(status.last_status_xsite)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-                Spacer(Modifier.height(4.dp))
-                Text("ETags", style = MaterialTheme.typography.titleSmall)
-                if (status.etags.isEmpty()) {
-                    Text("No ETags reported", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    status.etags.toSortedMap().forEach { (path, etag) ->
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(path, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                formatFingerprint(etag),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
+                TextButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                    Text(if (detailsExpanded) "Collapse details" else "Expand to view details")
                 }
 
-                Spacer(Modifier.height(4.dp))
-                Text("SHA-256 file hashes", style = MaterialTheme.typography.titleSmall)
-                if (status.sha256.isEmpty()) {
-                    Text("No file hashes reported", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    status.sha256.toSortedMap().forEach { (filename, hash) ->
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(filename, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                formatFingerprint(hash),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
+                if (detailsExpanded) {
+                    Text("ETags", style = MaterialTheme.typography.titleSmall)
+                    if (status.etags.isEmpty()) {
+                        Text("No ETags reported", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        status.etags.toSortedMap().forEach { (path, etag) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(path, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    formatFingerprint(etag),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    Text("SHA-256 file hashes", style = MaterialTheme.typography.titleSmall)
+                    if (status.sha256.isEmpty()) {
+                        Text("No file hashes reported", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        status.sha256.toSortedMap().forEach { (filename, hash) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(filename, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    formatFingerprint(hash),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
                     }
                 }
@@ -804,7 +831,6 @@ private fun RemoteServerStatusCard(
         }
     }
 }
-
 @Composable
 private fun DiscoveryModeSegmentedButton(
     selectedMode: DiscoveryMode,
