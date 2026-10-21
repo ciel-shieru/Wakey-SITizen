@@ -333,7 +333,7 @@ class SyncWorker @AssistedInject constructor(
                 val today = targetDateOverride ?: now.atZone(zone).toLocalDate()
                 val daysToFetch = 7
                 val externalEvents = (0 until daysToFetch).flatMap { offset ->
-                    calendarEventSource.getEventsForDate(today.plusDays(offset.toLong()), config.selectedCalendarIds)
+                    calendarEventSource.getTimetableEventsForDate(today.plusDays(offset.toLong()), config.selectedCalendarIds)
                 }.filterNot { external ->
                     external.title.startsWith("brightspace-", ignoreCase = true)
                 }
