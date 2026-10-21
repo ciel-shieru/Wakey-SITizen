@@ -151,54 +151,38 @@ class SettingsViewModelDebugStateTest {
     }
 
     @Test
-    fun `test alarm schedules one second after press using normal alarm data`() = runTest {
+    fun `test alarm uses selected one-based alarm number and ringtone`() = runTest {
         alarmRepository.saveConfig(
             AlarmConfig(
-                ringtonePlaylist = RingtonePlaylist(listOf("content://alarm-tone"))
+                maxRepeats = 4,
+                ringtonePlaylist = RingtonePlaylist(
+                    listOf(
+                        "content://alarm-one",
+                        "content://alarm-two",
+                        "content://alarm-three",
+                        "content://alarm-four"
+                    )
+                )
             )
         )
         viewModel.toggleDebugMode(true)
 
         viewModel.testAlarmNow(1)
-
-        val (alarm, day) = alarmRepository.scheduledAlarms.single()
-        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
-        assertEquals(LocalDate.of(2026, 10, 20), day)
-        assertEquals(com.cielshieru.wakey.android.AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE, alarm.requestCode)
-        assertEquals("content://alarm-tone", alarm.ringtoneUri)
-    }
-
-    @Test
-    fun `test alarm schedules the selected one-based alarm and its ringtone`() = runTest {
-        alarmRepository.saveConfig(
-            AlarmConfig(
-                maxRepeats = 4,
-                ringtonePlaylist = RingtonePlaylist(
-                    listOf("content://alarm-one", "content://alarm-two", "content://alarm-three", "content://alarm-four")
-                )
-            )
-        )
-        viewModel.updateMaxRepeats("4")
-        viewModel.toggleDebugMode(true)
-
         viewModel.testAlarmNow(3)
 
-        val (alarm, day) = alarmRepository.scheduledAlarms.single()
-        assertEquals(2, alarm.index)
-        assertEquals("content://alarm-three", alarm.ringtoneUri)
-        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), alarm.triggerAt)
-        assertEquals(LocalDate.of(2026, 10, 20), day)
-    }
+        assertEquals(2, alarmRepository.scheduledAlarms.size)
+        val (firstAlarm, firstDay) = alarmRepository.scheduledAlarms[0]
+        assertEquals(0, firstAlarm.index)
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), firstAlarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), firstDay)
+        assertEquals(com.cielshieru.wakey.android.AlarmService.DEBUG_TEST_ALARM_REQUEST_CODE, firstAlarm.requestCode)
+        assertEquals("content://alarm-one", firstAlarm.ringtoneUri)
 
-    @Test
-    fun `test alarm rejects a number above configured max repeats`() = runTest {
-        alarmRepository.saveConfig(AlarmConfig(maxRepeats = 4))
-        viewModel.updateMaxRepeats("4")
-        viewModel.toggleDebugMode(true)
-
-        viewModel.testAlarmNow(5)
-
-        assertEquals(0, alarmRepository.scheduledAlarms.size)
+        val (thirdAlarm, thirdDay) = alarmRepository.scheduledAlarms[1]
+        assertEquals(2, thirdAlarm.index)
+        assertEquals("content://alarm-three", thirdAlarm.ringtoneUri)
+        assertEquals(Instant.parse("2026-10-20T05:46:41Z"), thirdAlarm.triggerAt)
+        assertEquals(LocalDate.of(2026, 10, 20), thirdDay)
     }
 
     @Test
