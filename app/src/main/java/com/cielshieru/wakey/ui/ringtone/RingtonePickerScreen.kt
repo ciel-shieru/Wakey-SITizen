@@ -138,7 +138,7 @@ fun RingtonePickerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.5f),
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("No ringtones selected")
@@ -147,7 +147,8 @@ fun RingtonePickerScreen(
                 RingtoneList(
                     ringtones = uiState.ringtoneUris,
                     viewModel = viewModel,
-                    listState = listState
+                    listState = listState,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -221,7 +222,8 @@ fun RingtonePickerScreen(
 private fun RingtoneList(
     ringtones: List<String>,
     viewModel: RingtonePickerViewModel,
-    listState: LazyListState
+    listState: LazyListState,
+    modifier: Modifier = Modifier
 ) {
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOverIndex by remember { mutableStateOf<Int?>(null) }
@@ -235,7 +237,7 @@ private fun RingtoneList(
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxHeight(),
+        modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
