@@ -14,7 +14,7 @@ When the app uses SIT-ICS-Go's Remote Server discovery mode, users need to see w
 
 ## Decision
 
-The settings screen fetches `GET /status` from the saved SIT-ICS-Go base URL and renders the last fetch job time, all reported ETags, and SHA-256 hashes in a readable status card. A `Fetch now` action sends `POST /refresh` and then updates the status display.
+The settings screen fetches `GET /status` from the saved SIT-ICS-Go base URL and renders the last fetch job time plus `job_status`, `last_status_in4sit`, and `last_status_xsite` outside the integrity details. ETags and SHA-256 hashes are grouped under an `Expand to view details` control that is collapsed by default. A `Fetch now` action sends `POST /refresh` and then updates the status display.
 
 The status controls are gated on the persisted discovery mode and use the persisted server URL, not the settings form's unsaved edits. The client accepts only HTTP or HTTPS URLs without embedded credentials, query parameters, or fragments, sets finite request timeouts, and disables redirect following so requests cannot be redirected to a different host. No new network host or endpoint is introduced.
 

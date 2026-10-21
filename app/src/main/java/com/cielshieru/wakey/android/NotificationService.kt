@@ -11,6 +11,9 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.cielshieru.wakey.ui.MainActivity
 import java.time.LocalDate
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Notification channels and posting for wake-up alarms and bedtime reminders.
@@ -120,11 +123,17 @@ object NotificationService {
         context.getSystemService(NotificationManager::class.java).cancel(ALARM_NOTIFICATION_ID)
     }
 
-    fun showBedtimeNotification(context: Context) {
+    fun showBedtimeNotification(context: Context, bedtimeAtMillis: Long? = null) {
+        val bedtimeText = bedtimeAtMillis?.let { millis ->
+            val time = Instant.ofEpochMilli(millis)
+                .atZone(ZoneId.systemDefault())
+                .format(DateTimeFormatter.ofPattern("h:mm a"))
+            "Bedtime is $time. Time to wind down and prepare for sleep."
+        } ?: "Time to wind down and prepare for sleep."
         val builder = NotificationCompat.Builder(context, CHANNEL_BEDTIME)
             .setSmallIcon(android.R.drawable.ic_menu_report_image)
             .setContentTitle("Bedtime Reminder")
-            .setContentText("Time to wind down and prepare for sleep.")
+            .setContentText(bedtimeText)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .setContentIntent(mainActivityPendingIntent(context))

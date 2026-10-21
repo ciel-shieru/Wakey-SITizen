@@ -1,5 +1,7 @@
 package com.cielshieru.wakey.domain.model
 
+enum class BedtimeReminderMode { Relative, Absolute }
+
 sealed interface DiscoveryMode {
     object DeviceCalendar : DiscoveryMode
     object RemoteServer : DiscoveryMode
@@ -12,6 +14,8 @@ data class AlarmConfig(
     val maxRepeats: Int = DEFAULT_MAX_REPEATS,
     val targetSleepDurationHours: Int = DEFAULT_SLEEP_DURATION,
     val bedtimeReminderOffsetMinutes: Int = DEFAULT_BEDTIME_OFFSET,
+    val bedtimeReminderMode: BedtimeReminderMode = BedtimeReminderMode.Absolute,
+    val bedtimeReminderAbsoluteTime: java.time.LocalTime = DEFAULT_BEDTIME_ABSOLUTE_TIME,
     val externalEventBufferMinutes: Int = DEFAULT_BUFFER_MINUTES,
     val externalEventEnabled: Boolean = false,
     val externalEventCalendarIds: List<String> = emptyList(),
@@ -30,6 +34,7 @@ data class AlarmConfig(
         const val DEFAULT_MAX_REPEATS = 6
         const val DEFAULT_SLEEP_DURATION = 8
         const val DEFAULT_BEDTIME_OFFSET = 30
+        val DEFAULT_BEDTIME_ABSOLUTE_TIME: java.time.LocalTime = java.time.LocalTime.of(19, 0)
         const val DEFAULT_BUFFER_MINUTES = 30
         const val DEFAULT_REMOTE_SERVER_URL = "http://localhost:42748"
 
@@ -38,9 +43,9 @@ data class AlarmConfig(
             campusOffsetMinutes = config.campusOffsetMinutes.coerceIn(1, 720),
             repeatIntervalMinutes = config.repeatIntervalMinutes.coerceIn(1, 30),
             maxRepeats = config.maxRepeats.coerceIn(1, 20),
-            targetSleepDurationHours = config.targetSleepDurationHours.coerceIn(4, 12),
-            bedtimeReminderOffsetMinutes = config.bedtimeReminderOffsetMinutes.coerceIn(5, 60),
-            externalEventBufferMinutes = config.externalEventBufferMinutes.coerceIn(5, 120)
+            targetSleepDurationHours = config.targetSleepDurationHours.coerceIn(1, 24),
+            bedtimeReminderOffsetMinutes = config.bedtimeReminderOffsetMinutes.coerceIn(5, 1440),
+            externalEventBufferMinutes = config.externalEventBufferMinutes.coerceIn(1, 720)
         )
     }
 }

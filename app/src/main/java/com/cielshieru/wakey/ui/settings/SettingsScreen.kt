@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.PermissionEntry
 import com.cielshieru.wakey.domain.model.PermissionStatus
 import java.text.DateFormat
@@ -320,8 +321,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.onlineOffset.toString(),
-                    onValueChange = { viewModel.updateOnlineOffset(it.toIntOrNull() ?: 60) },
+                    value = uiState.onlineOffset,
+                    onValueChange = viewModel::updateOnlineOffset,
+                    placeholder = { Text("60") },
                     label = { Text("Online offset (minutes)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.onlineOffset.toString(), 1, 720, "Online offset") }
@@ -330,8 +332,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.campusOffset.toString(),
-                    onValueChange = { viewModel.updateCampusOffset(it.toIntOrNull() ?: 90) },
+                    value = uiState.campusOffset,
+                    onValueChange = viewModel::updateCampusOffset,
+                    placeholder = { Text("90") },
                     label = { Text("Campus offset (minutes)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.campusOffset.toString(), 1, 720, "Campus offset") }
@@ -418,8 +421,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.repeatInterval.toString(),
-                    onValueChange = { viewModel.updateRepeatInterval(it.toIntOrNull() ?: 5) },
+                    value = uiState.repeatInterval,
+                    onValueChange = viewModel::updateRepeatInterval,
+                    placeholder = { Text("5") },
                     label = { Text("Repeat interval (minutes, 1-30)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.repeatInterval.toString(), 1, 30, "Repeat interval") }
@@ -428,8 +432,9 @@ fun SettingsScreen(
 
             item {
                 OutlinedTextField(
-                    value = uiState.maxRepeats.toString(),
-                    onValueChange = { viewModel.updateMaxRepeats(it.toIntOrNull() ?: 6) },
+                    value = uiState.maxRepeats,
+                    onValueChange = viewModel::updateMaxRepeats,
+                    placeholder = { Text("6") },
                     label = { Text("Max repeats (1-20)") },
                     singleLine = true,
                     supportingText = { ValidationSupportingText(uiState.maxRepeats.toString(), 1, 20, "Max repeats") }
@@ -452,24 +457,49 @@ fun SettingsScreen(
 
             if (uiState.bedtimeEnabled) {
                 item {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = uiState.bedtimeReminderMode == BedtimeReminderMode.Relative,
+                            onClick = { viewModel.selectBedtimeReminderMode(BedtimeReminderMode.Relative) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                        ) { Text("Relative") }
+                        SegmentedButton(
+                            selected = uiState.bedtimeReminderMode == BedtimeReminderMode.Absolute,
+                            onClick = { viewModel.selectBedtimeReminderMode(BedtimeReminderMode.Absolute) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                        ) { Text("Absolute") }
+                    }
+
+                    if (uiState.bedtimeReminderMode == BedtimeReminderMode.Relative) {
+                        OutlinedTextField(
+                            value = uiState.bedtimeOffset,
+                            onValueChange = viewModel::updateBedtimeOffset,
+                            placeholder = { Text("30") },
+                            label = { Text("Reminder before bedtime (minutes, 5-1440)") },
+                            singleLine = true,
+                            supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 1440, "Bedtime offset") }
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = uiState.bedtimeAbsoluteTime,
+                            onValueChange = viewModel::updateBedtimeAbsoluteTime,
+                            label = { Text("Notify at (24-hour HH:mm)") },
+                            placeholder = { Text("19:00") },
+                            singleLine = true,
+                            supportingText = { Text("Notify at this time on the evening of the calculated bedtime.") }
+                        )
+                    }
+
                     OutlinedTextField(
-                        value = uiState.sleepDuration.toString(),
-                        onValueChange = { viewModel.updateSleepDuration(it.toIntOrNull() ?: 8) },
-                        label = { Text("Target sleep (hours, 4-12)") },
+                        value = uiState.sleepDuration,
+                        onValueChange = viewModel::updateSleepDuration,
+                        placeholder = { Text("8") },
+                        label = { Text("Target sleep (hours, 1-24)") },
                         singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 4, 12, "Target sleep") }
+                        supportingText = { ValidationSupportingText(uiState.sleepDuration.toString(), 1, 24, "Target sleep") }
                     )
                 }
 
-                item {
-                    OutlinedTextField(
-                        value = uiState.bedtimeOffset.toString(),
-                        onValueChange = { viewModel.updateBedtimeOffset(it.toIntOrNull() ?: 30) },
-                        label = { Text("Bedtime reminder offset (minutes, 5-60)") },
-                        singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.bedtimeOffset.toString(), 5, 60, "Bedtime offset") }
-                    )
-                }
             }
 
             if (uiState.bedtimeEnabled && !postNotificationsGranted) {
@@ -543,11 +573,12 @@ fun SettingsScreen(
             if (uiState.externalEnabled) {
                 item {
                     OutlinedTextField(
-                        value = uiState.externalBuffer.toString(),
-                        onValueChange = { viewModel.updateExternalBuffer(it.toIntOrNull() ?: 30) },
-                        label = { Text("Buffer minutes (5-120)") },
+                        value = uiState.externalBuffer,
+                        onValueChange = viewModel::updateExternalBuffer,
+                        placeholder = { Text("30") },
+                        label = { Text("Buffer minutes (1-720)") },
                         singleLine = true,
-                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 5, 120, "Buffer") }
+                        supportingText = { ValidationSupportingText(uiState.externalBuffer.toString(), 1, 720, "Buffer") }
                     )
                 }
 
@@ -722,6 +753,14 @@ private fun formatServerFetchTime(value: String?): String {
     }.getOrDefault(value)
 }
 
+private fun formatServerStatus(value: String): String = when (value.lowercase()) {
+    "running" -> "Running"
+    "finished" -> "Finished"
+    "successful" -> "Successful"
+    "failed" -> "Failed"
+    else -> "Unknown"
+}
+
 private fun formatFingerprint(value: String): String =
     value.chunked(16).joinToString(" ")
 
@@ -730,6 +769,8 @@ private fun RemoteServerStatusCard(
     state: SettingsUiState,
     onRefresh: () -> Unit
 ) {
+    var detailsExpanded by remember { mutableStateOf(false) }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -759,37 +800,54 @@ private fun RemoteServerStatusCard(
                     text = "Last fetch job: ${formatServerFetchTime(status.last_fetch_job_time)}",
                     style = MaterialTheme.typography.bodyMedium
                 )
+                Text(
+                    text = "Job status: ${formatServerStatus(status.job_status)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "IN4SIT: ${formatServerStatus(status.last_status_in4sit)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "xSITe: ${formatServerStatus(status.last_status_xsite)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-                Spacer(Modifier.height(4.dp))
-                Text("ETags", style = MaterialTheme.typography.titleSmall)
-                if (status.etags.isEmpty()) {
-                    Text("No ETags reported", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    status.etags.toSortedMap().forEach { (path, etag) ->
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(path, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                formatFingerprint(etag),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
+                TextButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                    Text(if (detailsExpanded) "Collapse details" else "Expand to view details")
                 }
 
-                Spacer(Modifier.height(4.dp))
-                Text("SHA-256 file hashes", style = MaterialTheme.typography.titleSmall)
-                if (status.sha256.isEmpty()) {
-                    Text("No file hashes reported", style = MaterialTheme.typography.bodySmall)
-                } else {
-                    status.sha256.toSortedMap().forEach { (filename, hash) ->
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(filename, style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                formatFingerprint(hash),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
+                if (detailsExpanded) {
+                    Text("ETags", style = MaterialTheme.typography.titleSmall)
+                    if (status.etags.isEmpty()) {
+                        Text("No ETags reported", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        status.etags.toSortedMap().forEach { (path, etag) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(path, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    formatFingerprint(etag),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    Text("SHA-256 file hashes", style = MaterialTheme.typography.titleSmall)
+                    if (status.sha256.isEmpty()) {
+                        Text("No file hashes reported", style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        status.sha256.toSortedMap().forEach { (filename, hash) ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(filename, style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    formatFingerprint(hash),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
                         }
                     }
                 }
@@ -804,7 +862,6 @@ private fun RemoteServerStatusCard(
         }
     }
 }
-
 @Composable
 private fun DiscoveryModeSegmentedButton(
     selectedMode: DiscoveryMode,

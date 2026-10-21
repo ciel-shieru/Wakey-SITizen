@@ -23,14 +23,18 @@ ADR-0003 established the alarm scheduling policy for wake-up alarms. Students al
 
 ### Inputs (all user-configured)
 
-- **targetSleepDuration**: The user's desired sleep duration, e.g., 8 hours. Stored as a `Duration` in DataStore. Default: 8 hours.
-- **bedtimeReminderOffset**: How far before the target bedtime the reminder should fire, e.g., 30 minutes. Default: 30 minutes.
+- **targetSleepDuration**: The user's desired sleep duration, default 8 hours; accepted range is 1–24 hours.
+- **bedtimeReminderMode**: Either Absolute or Relative. Default: Absolute.
+- **bedtimeReminderAbsoluteTime**: In Absolute mode, the device-local time at which to notify; default 19:00 (7 PM).
+- **bedtimeReminderOffset**: In Relative mode, how many minutes before the target bedtime to notify; default 30 minutes, range 5–1440 minutes.
 
 ### Derivation (computed during each sync)
 
-1. Get the first wake-up alarm time for the next day (`firstAlarmTime`). If no alarms are set for any future day, skip bedtime reminder computation.
-2. Compute `targetBedtime = firstAlarmTime - targetSleepDuration`.
-3. Compute `bedtimeReminderTime = targetBedtime - bedtimeReminderOffset`.
+1. Get the earliest first-alarm time that is still in the future (`firstAlarmTime`). If no upcoming alarm exists, skip bedtime computation.
+2. Compute the actual `targetBedtime = firstAlarmTime - targetSleepDuration`. The reminder offset is never included in this calculation.
+3. In Relative mode, compute `bedtimeReminderTime = targetBedtime - bedtimeReminderOffset`.
+4. In Absolute mode, place `bedtimeReminderTime` at the configured local time on the target-bedtime date. If that clock time is at or after the target bedtime (for example, a 00:30 bedtime with a 19:00 notification), use the previous evening.
+5. Display the actual target bedtime on the Home screen independently of notification delivery. Only schedule the notification if its trigger is still in the future.
 
 ### Delivery
 
@@ -45,7 +49,7 @@ The bedtime reminder is delivered as a notification:
 
 2. **Early morning events**: If the first event is early (e.g., 7:00 AM) and the target sleep duration is 8 hours, the target bedtime is 11:00 PM the previous evening. The bedtime reminder time would be, e.g., 10:30 PM. This is correct — the student should be reminded to sleep the evening before.
 
-3. **Reminder already passed**: If `bedtimeReminderTime` is in the past relative to "now" when computed, skip setting it for today. The next sync cycle (within 12 hours) will recompute and set it if still relevant. This avoids redundant notifications.
+3. **Reminder trigger already passed**: Do not schedule a notification whose trigger time is in the past, as that could cause it to fire immediately. If the target bedtime itself is still in the future, keep displaying it on the Home screen; if the target bedtime has also passed, skip bedtime computation.
 
 4. **Multiple days**: The bedtime reminder is computed for the next day's first alarm. If the user's schedule changes between syncs, the previous bedtime reminder is cleared and replaced with the new one during alarm reconciliation.
 
@@ -53,8 +57,12 @@ The bedtime reminder is delivered as a notification:
 
 | Setting | Default | Range |
 |---------|---------|-------|
-| targetSleepDuration | 8 hours | 4–12 hours |
-| bedtimeReminderOffset | 30 minutes | 5–60 minutes |
+| Setting | Default | Range |
+|---------|---------|-------|
+| Target sleep | 8 hours | 1–24 hours |
+| Reminder mode | Absolute | Absolute or Relative |
+| Absolute notification time | 19:00 (7 PM local time) | Valid local time |
+| Relative reminder offset | 30 minutes | 5–1440 minutes |
 
 ## Rationale
 
@@ -69,9 +77,9 @@ Using the same infrastructure as wake-up alarms avoids:
 - Managing two separate sets of alarm state.
 - Additional permissions or background work requirements.
 
-### Why skip past reminders
+### Why separate target bedtime from the reminder trigger
 
-Setting a bedtime reminder that has already passed would either fire immediately (wasteful) or be ignored by the system. Skipping and waiting for the next sync is cleaner and avoids unnecessary notification spam.
+The target bedtime is always derived from the sleep-duration requirement. The reminder mode only determines notification timing. This keeps the Home screen's bedtime accurate even if the chosen notification time has already passed, while the sync worker avoids scheduling past triggers.
 
 ## Consequences
 

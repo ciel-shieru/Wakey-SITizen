@@ -24,6 +24,7 @@ class BedtimeComputerTest {
         val config = AlarmConfig(
             targetSleepDurationHours = 8,
             bedtimeReminderOffsetMinutes = 30,
+            bedtimeReminderMode = BedtimeReminderMode.Relative,
             bedtimeEnabled = true
         )
         val now = Instant.parse("2026-10-06T12:00:00Z")
@@ -31,6 +32,26 @@ class BedtimeComputerTest {
         val result = BedtimeComputer.compute(listOf(schedule), config, now)
 
         assertNotNull(result)
+        assertEquals(Instant.parse("2026-10-06T23:30:00Z"), result!!.bedtimeAt)
+        assertEquals(Instant.parse("2026-10-06T23:00:00Z"), result.triggerAt)
+        assertEquals("Bedtime is 11:30 PM. Your alarm is set for 7:30 AM.", result.message)
+    }
+
+    @Test
+    fun `absolute mode triggers at configured time on bedtime date`() {
+        val day = LocalDate.of(2026, 10, 7)
+        val schedule = AlarmSchedule(day, emptyList(), Instant.parse("2026-10-07T00:30:00Z"))
+        val config = AlarmConfig(
+            bedtimeEnabled = true,
+            targetSleepDurationHours = 8,
+            bedtimeReminderMode = BedtimeReminderMode.Absolute,
+            bedtimeReminderAbsoluteTime = java.time.LocalTime.of(19, 0)
+        )
+        val result = BedtimeComputer.compute(
+            listOf(schedule), config, Instant.parse("2026-10-06T08:00:00Z"), java.time.ZoneId.of("Asia/Singapore")
+        )
+        assertEquals(Instant.parse("2026-10-06T11:00:00Z"), result!!.triggerAt)
+        assertEquals(Instant.parse("2026-10-06T16:30:00Z"), result.bedtimeAt)
     }
 
     @Test
@@ -70,23 +91,38 @@ class BedtimeComputerTest {
     }
 
     @Test
-    fun `compute returns null when reminder already passed`() {
+    fun `compute retains upcoming bedtime when reminder trigger already passed`() {
         val day = LocalDate.of(2026, 10, 7)
         val firstAlarm = Instant.parse("2026-10-07T07:30:00Z")
-        val schedule = AlarmSchedule(
-            day = day,
-            alarms = emptyList(),
-            firstAlarmTime = firstAlarm
-        )
-
+        val schedule = AlarmSchedule(day, emptyList(), firstAlarm)
         val config = AlarmConfig(
             targetSleepDurationHours = 8,
             bedtimeReminderOffsetMinutes = 30,
+            bedtimeReminderMode = BedtimeReminderMode.Relative,
             bedtimeEnabled = true
         )
         val now = Instant.parse("2026-10-06T23:01:00Z")
 
         val result = BedtimeComputer.compute(listOf(schedule), config, now)
+
+        assertNotNull(result)
+        assertEquals(Instant.parse("2026-10-06T23:00:00Z"), result!!.triggerAt)
+        assertEquals(Instant.parse("2026-10-06T23:30:00Z"), result.bedtimeAt)
+    }
+
+    @Test
+    fun `compute returns null when target bedtime has already passed`() {
+        val firstAlarm = Instant.parse("2026-10-07T07:30:00Z")
+        val schedule = AlarmSchedule(LocalDate.of(2026, 10, 7), emptyList(), firstAlarm)
+        val config = AlarmConfig(
+            targetSleepDurationHours = 8,
+            bedtimeReminderMode = BedtimeReminderMode.Relative,
+            bedtimeEnabled = true
+        )
+
+        val result = BedtimeComputer.compute(
+            listOf(schedule), config, Instant.parse("2026-10-06T23:31:00Z")
+        )
 
         assertNull(result)
     }

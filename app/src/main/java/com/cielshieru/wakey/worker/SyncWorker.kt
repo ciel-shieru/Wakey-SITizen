@@ -162,8 +162,16 @@ class SyncWorker @AssistedInject constructor(
             // Step 4: adjust for external events (ADR-0005), when enabled.
             val adjustedSchedules = if (config.externalEventEnabled) {
                 schedules.map { schedule ->
-                    val externalEvents =
-                        calendarEventSource.getEventsForDate(schedule.day, config.externalEventCalendarIds)
+                    // Include the previous calendar day because the supported buffer
+                    // can span midnight (up to 12 hours). Deduplicate instances that
+                    // overlap both date queries.
+                    val externalEvents = listOf(schedule.day.minusDays(1), schedule.day)
+                        .flatMap { date ->
+                            calendarEventSource.getEventsForDate(date, config.externalEventCalendarIds)
+                        }
+                        .distinctBy { event ->
+                            listOf(event.calendarId, event.title, event.dtstart, event.dtend)
+                        }
                     AdjustForExternalEvents.adjust(
                         schedule,
                         externalEvents,
@@ -249,19 +257,25 @@ class SyncWorker @AssistedInject constructor(
                 }
             }
 
-            val bedtime = BedtimeComputer.compute(finalSchedules, config, now)
+            val bedtime = BedtimeComputer.compute(finalSchedules, config, now, zone)
+            val shouldScheduleBedtimeReminder = bedtime?.triggerAt?.isAfter(now) == true
             if (debugConfig.debugModeEnabled) {
-                if (bedtime != null) {
+                if (bedtime == null) {
+                    debugLogger.logBedtimeSkipped("no upcoming target bedtime")
+                } else if (shouldScheduleBedtimeReminder) {
                     debugLogger.logBedtimeSet(bedtime)
                 } else {
-                    debugLogger.logBedtimeSkipped("null result or already passed")
+                    debugLogger.logBedtimeSkipped("reminder trigger has already passed")
                 }
             }
-            if (bedtime != null) {
-                alarmService.setBedtimeReminder(bedtime.triggerAt.toEpochMilli())
+            if (bedtime != null && shouldScheduleBedtimeReminder) {
+                alarmService.setBedtimeReminder(
+                    bedtime.triggerAt.toEpochMilli(),
+                    bedtime.bedtimeAt.toEpochMilli()
+                )
             } else {
-                // No upcoming alarm (or reminder already passed) — make sure a
-                // previously scheduled reminder does not fire stale.
+                // Keep past reminders from firing immediately, even when the target
+                // bedtime remains upcoming and can still be shown on the Home screen.
                 alarmService.cancelBedtimeReminder()
             }
 
