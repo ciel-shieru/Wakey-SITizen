@@ -40,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -149,14 +150,11 @@ class SettingsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Settings UI state is intentionally initialized only once. Read the
-            // explicitness metadata once rather than keeping another DataStore
-            // collection active for the lifetime of the screen.
-            val explicitNumericFields = datastore.data.explicitNumericConfigFieldsFlow().first()
             combine(
                 alarmRepository.config,
-                alarmRepository.debugConfig
-            ) { config, debug ->
+                alarmRepository.debugConfig,
+                datastore.data.explicitNumericConfigFieldsFlow().take(1)
+            ) { config, debug, explicitNumericFields ->
                 val onlineId = config.onlineCalendarId
                 val campusId = config.campusCalendarId
 
