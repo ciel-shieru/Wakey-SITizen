@@ -4,12 +4,17 @@ import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.AlarmSchedule
 import com.cielshieru.wakey.domain.model.DebugConfig
 import com.cielshieru.wakey.domain.model.ManualOverride
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 interface AlarmRepository {
     val config: Flow<AlarmConfig>
     suspend fun saveConfig(config: AlarmConfig)
+    suspend fun saveConfig(
+        config: AlarmConfig,
+        explicitlyConfiguredNumericFields: Set<NumericConfigField>
+    ) = saveConfig(config)
     val overrides: Flow<List<ManualOverride>>
     suspend fun saveOverride(override: ManualOverride)
     val schedules: Flow<List<AlarmSchedule>?>

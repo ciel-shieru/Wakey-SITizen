@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.BedtimeReminderMode
 import com.cielshieru.wakey.domain.model.DiscoveryMode
+import com.cielshieru.wakey.domain.model.NumericConfigField
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -34,6 +35,7 @@ object AlarmConfigStore {
     private val CAMPUS_CALENDAR_ID = stringPreferencesKey("campus_calendar_id")
     private val EXTERNAL_EVENT_CALENDAR_IDS = stringPreferencesKey("external_event_calendar_ids")
     private val RINGTONE_PLAYLIST = stringPreferencesKey("ringtone_playlist")
+    private val EXPLICIT_NUMERIC_FIELDS = stringPreferencesKey("explicit_numeric_fields")
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -77,6 +79,29 @@ object AlarmConfigStore {
         )
     }
 
+    fun Flow<Preferences>.explicitNumericConfigFieldsFlow(): Flow<Set<NumericConfigField>> = map { prefs ->
+        if (prefs.contains(EXPLICIT_NUMERIC_FIELDS)) {
+            prefs[EXPLICIT_NUMERIC_FIELDS]
+                .orEmpty()
+                .split(",")
+                .mapNotNull { field -> runCatching { NumericConfigField.valueOf(field) }.getOrNull() }
+                .toSet()
+        } else {
+            // Before explicit_numeric_fields was introduced, every settings save
+            // wrote all numeric values. Infer only non-default legacy values;
+            // old installations cannot reliably distinguish typed defaults.
+            buildSet {
+                if ((prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET) != AlarmConfig.DEFAULT_ONLINE_OFFSET) add(NumericConfigField.ONLINE_OFFSET)
+                if ((prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET) != AlarmConfig.DEFAULT_CAMPUS_OFFSET) add(NumericConfigField.CAMPUS_OFFSET)
+                if ((prefs[REPEAT_INTERVAL] ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL) != AlarmConfig.DEFAULT_REPEAT_INTERVAL) add(NumericConfigField.REPEAT_INTERVAL)
+                if ((prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS) != AlarmConfig.DEFAULT_MAX_REPEATS) add(NumericConfigField.MAX_REPEATS)
+                if ((prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION) != AlarmConfig.DEFAULT_SLEEP_DURATION) add(NumericConfigField.SLEEP_DURATION)
+                if ((prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET) != AlarmConfig.DEFAULT_BEDTIME_OFFSET) add(NumericConfigField.BEDTIME_OFFSET)
+                if ((prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES) != AlarmConfig.DEFAULT_BUFFER_MINUTES) add(NumericConfigField.EXTERNAL_BUFFER)
+            }
+        }
+    }
+
     private fun parseDiscoveryMode(value: String?): DiscoveryMode {
         return when (value) {
             "device_calendar" -> DiscoveryMode.DeviceCalendar
@@ -94,20 +119,88 @@ object AlarmConfigStore {
         }
     }
 
-    suspend fun DataStore<Preferences>.saveConfig(config: AlarmConfig) {
+    suspend fun DataStore<Preferences>.saveConfig(
+        config: AlarmConfig,
+        explicitlyConfiguredNumericFields: Set<NumericConfigField>? = null
+    ) {
         edit { prefs ->
-            prefs[ONLINE_OFFSET] = config.onlineOffsetMinutes
-            prefs[CAMPUS_OFFSET] = config.campusOffsetMinutes
-            prefs[REPEAT_INTERVAL] = config.repeatIntervalMinutes
-            prefs[MAX_REPEATS] = config.maxRepeats
-            prefs[SLEEP_DURATION] = config.targetSleepDurationHours
-            prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
+            // Explicit-field metadata is supplied by the settings form. Other
+            // callers (such as ringtone changes) preserve that metadata; for
+            // legacy installations, infer only values that differ from defaults.
+            val previouslyExplicitFields = if (prefs.contains(EXPLICIT_NUMERIC_FIELDS)) {
+                prefs[EXPLICIT_NUMERIC_FIELDS]
+                    .orEmpty()
+                    .split(",")
+                    .mapNotNull { field -> runCatching { NumericConfigField.valueOf(field) }.getOrNull() }
+                    .toSet()
+            } else {
+                // Before explicit_numeric_fields existed, every settings save
+                // wrote all numeric values. Infer only non-default legacy values;
+                // old installations cannot reliably distinguish typed defaults.
+                buildSet {
+                    if ((prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET) != AlarmConfig.DEFAULT_ONLINE_OFFSET) add(NumericConfigField.ONLINE_OFFSET)
+                    if ((prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET) != AlarmConfig.DEFAULT_CAMPUS_OFFSET) add(NumericConfigField.CAMPUS_OFFSET)
+                    if ((prefs[REPEAT_INTERVAL] ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL) != AlarmConfig.DEFAULT_REPEAT_INTERVAL) add(NumericConfigField.REPEAT_INTERVAL)
+                    if ((prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS) != AlarmConfig.DEFAULT_MAX_REPEATS) add(NumericConfigField.MAX_REPEATS)
+                    if ((prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION) != AlarmConfig.DEFAULT_SLEEP_DURATION) add(NumericConfigField.SLEEP_DURATION)
+                    if ((prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET) != AlarmConfig.DEFAULT_BEDTIME_OFFSET) add(NumericConfigField.BEDTIME_OFFSET)
+                    if ((prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES) != AlarmConfig.DEFAULT_BUFFER_MINUTES) add(NumericConfigField.EXTERNAL_BUFFER)
+                }
+            }
+            val explicitFields = explicitlyConfiguredNumericFields ?: buildSet {
+                addAll(previouslyExplicitFields)
+                if (config.onlineOffsetMinutes != (prefs[ONLINE_OFFSET] ?: AlarmConfig.DEFAULT_ONLINE_OFFSET)) add(NumericConfigField.ONLINE_OFFSET)
+                if (config.campusOffsetMinutes != (prefs[CAMPUS_OFFSET] ?: AlarmConfig.DEFAULT_CAMPUS_OFFSET)) add(NumericConfigField.CAMPUS_OFFSET)
+                if (config.repeatIntervalMinutes != (prefs[REPEAT_INTERVAL] ?: AlarmConfig.DEFAULT_REPEAT_INTERVAL)) add(NumericConfigField.REPEAT_INTERVAL)
+                if (config.maxRepeats != (prefs[MAX_REPEATS] ?: AlarmConfig.DEFAULT_MAX_REPEATS)) add(NumericConfigField.MAX_REPEATS)
+                if (config.targetSleepDurationHours != (prefs[SLEEP_DURATION] ?: AlarmConfig.DEFAULT_SLEEP_DURATION)) add(NumericConfigField.SLEEP_DURATION)
+                if (config.bedtimeReminderOffsetMinutes != (prefs[BEDTIME_OFFSET] ?: AlarmConfig.DEFAULT_BEDTIME_OFFSET)) add(NumericConfigField.BEDTIME_OFFSET)
+                if (config.externalEventBufferMinutes != (prefs[BUFFER_MINUTES] ?: AlarmConfig.DEFAULT_BUFFER_MINUTES)) add(NumericConfigField.EXTERNAL_BUFFER)
+            }
+
+            if (NumericConfigField.ONLINE_OFFSET in explicitFields) {
+                prefs[ONLINE_OFFSET] = config.onlineOffsetMinutes
+            } else {
+                prefs.remove(ONLINE_OFFSET)
+            }
+            if (NumericConfigField.CAMPUS_OFFSET in explicitFields) {
+                prefs[CAMPUS_OFFSET] = config.campusOffsetMinutes
+            } else {
+                prefs.remove(CAMPUS_OFFSET)
+            }
+            if (NumericConfigField.REPEAT_INTERVAL in explicitFields) {
+                prefs[REPEAT_INTERVAL] = config.repeatIntervalMinutes
+            } else {
+                prefs.remove(REPEAT_INTERVAL)
+            }
+            if (NumericConfigField.MAX_REPEATS in explicitFields) {
+                prefs[MAX_REPEATS] = config.maxRepeats
+            } else {
+                prefs.remove(MAX_REPEATS)
+            }
+            if (NumericConfigField.SLEEP_DURATION in explicitFields) {
+                prefs[SLEEP_DURATION] = config.targetSleepDurationHours
+            } else {
+                prefs.remove(SLEEP_DURATION)
+            }
+            if (NumericConfigField.BEDTIME_OFFSET in explicitFields) {
+                prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
+            } else {
+                prefs.remove(BEDTIME_OFFSET)
+            }
             prefs[BEDTIME_REMINDER_MODE] = when (config.bedtimeReminderMode) {
                 BedtimeReminderMode.Relative -> "relative"
                 BedtimeReminderMode.Absolute -> "absolute"
             }
             prefs[BEDTIME_ABSOLUTE_TIME] = config.bedtimeReminderAbsoluteTime.toString()
-            prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
+            if (NumericConfigField.EXTERNAL_BUFFER in explicitFields) {
+                prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
+            } else {
+                prefs.remove(BUFFER_MINUTES)
+            }
+            prefs[EXPLICIT_NUMERIC_FIELDS] = explicitFields
+                .sortedBy { it.ordinal }
+                .joinToString(",") { it.name }
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[EXTERNAL_EVENT_CALENDAR_IDS] = config.externalEventCalendarIds.joinToString(",")
             prefs[SELECTED_CALENDAR_IDS] = config.selectedCalendarIds.joinToString(",")
