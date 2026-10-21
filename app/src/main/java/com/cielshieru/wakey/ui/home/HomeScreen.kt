@@ -90,7 +90,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
-                            text = "${event.courseCode} — ${event.title}",
+                            text = if (event.courseCode.isBlank()) event.title else "${event.courseCode} — ${event.title}",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -103,11 +103,13 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
-                            Text(
-                                text = event.location,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            if (event.location.isNotBlank()) {
+                                Text(
+                                    text = event.location,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                     }
                 }

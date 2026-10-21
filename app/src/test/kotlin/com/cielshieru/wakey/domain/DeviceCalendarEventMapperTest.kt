@@ -65,6 +65,52 @@ class DeviceCalendarEventMapperTest {
     }
 
     @Test
+    fun `PeopleSoft metadata overrides calendar title and preserves location`() {
+        val event = ExternalEvent(
+            title = "Fallback calendar title",
+            dtstart = LocalDateTime.of(2026, 10, 20, 9, 0),
+            dtend = LocalDateTime.of(2026, 10, 20, 10, 0),
+            calendarId = "campus-calendar",
+            location = "Room A",
+            peopleSoftCourseCode = "ALT2501",
+            peopleSoftTitle = "Lecture 1"
+        )
+
+        val mapped = DeviceCalendarEventMapper.map(
+            listOf(event),
+            onlineCalendarId = "online-calendar",
+            campusCalendarId = "campus-calendar"
+        ).single()
+
+        assertEquals("ALT2501", mapped.courseCode)
+        assertEquals("Lecture 1", mapped.title)
+        assertEquals("Lecture 1", mapped.summary)
+        assertEquals("Room A", mapped.location)
+    }
+
+    @Test
+    fun `missing PeopleSoft metadata falls back to calendar title and blank course code`() {
+        val event = ExternalEvent(
+            title = "Calendar event title",
+            dtstart = LocalDateTime.of(2026, 10, 20, 9, 0),
+            dtend = LocalDateTime.of(2026, 10, 20, 10, 0),
+            calendarId = "campus-calendar",
+            location = "Room B"
+        )
+
+        val mapped = DeviceCalendarEventMapper.map(
+            listOf(event),
+            onlineCalendarId = "online-calendar",
+            campusCalendarId = "campus-calendar"
+        ).single()
+
+        assertEquals("", mapped.courseCode)
+        assertEquals("Calendar event title", mapped.title)
+        assertEquals("Calendar event title", mapped.summary)
+        assertEquals("Room B", mapped.location)
+    }
+
+    @Test
     fun `missing calendar IDs do not accidentally classify events as online`() {
         val event = ExternalEvent(
             title = "Unclassified",
