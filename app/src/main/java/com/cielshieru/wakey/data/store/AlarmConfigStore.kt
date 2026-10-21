@@ -14,6 +14,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
 
+enum class NumericConfigField {
+    ONLINE_OFFSET,
+    CAMPUS_OFFSET,
+    REPEAT_INTERVAL,
+    MAX_REPEATS,
+    SLEEP_DURATION,
+    BEDTIME_OFFSET,
+    EXTERNAL_BUFFER
+}
+
 object AlarmConfigStore {
     private val ONLINE_OFFSET = intPreferencesKey("online_offset_minutes")
     private val CAMPUS_OFFSET = intPreferencesKey("campus_offset_minutes")
@@ -77,6 +87,18 @@ object AlarmConfigStore {
         )
     }
 
+    fun Flow<Preferences>.explicitNumericConfigFieldsFlow(): Flow<Set<NumericConfigField>> = map { prefs ->
+        buildSet {
+            if (prefs.contains(ONLINE_OFFSET)) add(NumericConfigField.ONLINE_OFFSET)
+            if (prefs.contains(CAMPUS_OFFSET)) add(NumericConfigField.CAMPUS_OFFSET)
+            if (prefs.contains(REPEAT_INTERVAL)) add(NumericConfigField.REPEAT_INTERVAL)
+            if (prefs.contains(MAX_REPEATS)) add(NumericConfigField.MAX_REPEATS)
+            if (prefs.contains(SLEEP_DURATION)) add(NumericConfigField.SLEEP_DURATION)
+            if (prefs.contains(BEDTIME_OFFSET)) add(NumericConfigField.BEDTIME_OFFSET)
+            if (prefs.contains(BUFFER_MINUTES)) add(NumericConfigField.EXTERNAL_BUFFER)
+        }
+    }
+
     private fun parseDiscoveryMode(value: String?): DiscoveryMode {
         return when (value) {
             "device_calendar" -> DiscoveryMode.DeviceCalendar
@@ -94,20 +116,51 @@ object AlarmConfigStore {
         }
     }
 
-    suspend fun DataStore<Preferences>.saveConfig(config: AlarmConfig) {
+    suspend fun DataStore<Preferences>.saveConfig(
+        config: AlarmConfig,
+        explicitlyConfiguredNumericFields: Set<NumericConfigField> = NumericConfigField.entries.toSet()
+    ) {
         edit { prefs ->
-            prefs[ONLINE_OFFSET] = config.onlineOffsetMinutes
-            prefs[CAMPUS_OFFSET] = config.campusOffsetMinutes
-            prefs[REPEAT_INTERVAL] = config.repeatIntervalMinutes
-            prefs[MAX_REPEATS] = config.maxRepeats
-            prefs[SLEEP_DURATION] = config.targetSleepDurationHours
-            prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
+            if (NumericConfigField.ONLINE_OFFSET in explicitlyConfiguredNumericFields) {
+                prefs[ONLINE_OFFSET] = config.onlineOffsetMinutes
+            } else {
+                prefs.remove(ONLINE_OFFSET)
+            }
+            if (NumericConfigField.CAMPUS_OFFSET in explicitlyConfiguredNumericFields) {
+                prefs[CAMPUS_OFFSET] = config.campusOffsetMinutes
+            } else {
+                prefs.remove(CAMPUS_OFFSET)
+            }
+            if (NumericConfigField.REPEAT_INTERVAL in explicitlyConfiguredNumericFields) {
+                prefs[REPEAT_INTERVAL] = config.repeatIntervalMinutes
+            } else {
+                prefs.remove(REPEAT_INTERVAL)
+            }
+            if (NumericConfigField.MAX_REPEATS in explicitlyConfiguredNumericFields) {
+                prefs[MAX_REPEATS] = config.maxRepeats
+            } else {
+                prefs.remove(MAX_REPEATS)
+            }
+            if (NumericConfigField.SLEEP_DURATION in explicitlyConfiguredNumericFields) {
+                prefs[SLEEP_DURATION] = config.targetSleepDurationHours
+            } else {
+                prefs.remove(SLEEP_DURATION)
+            }
+            if (NumericConfigField.BEDTIME_OFFSET in explicitlyConfiguredNumericFields) {
+                prefs[BEDTIME_OFFSET] = config.bedtimeReminderOffsetMinutes
+            } else {
+                prefs.remove(BEDTIME_OFFSET)
+            }
             prefs[BEDTIME_REMINDER_MODE] = when (config.bedtimeReminderMode) {
                 BedtimeReminderMode.Relative -> "relative"
                 BedtimeReminderMode.Absolute -> "absolute"
             }
             prefs[BEDTIME_ABSOLUTE_TIME] = config.bedtimeReminderAbsoluteTime.toString()
-            prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
+            if (NumericConfigField.EXTERNAL_BUFFER in explicitlyConfiguredNumericFields) {
+                prefs[BUFFER_MINUTES] = config.externalEventBufferMinutes
+            } else {
+                prefs.remove(BUFFER_MINUTES)
+            }
             prefs[EXTERNAL_EVENTS_ENABLED] = config.externalEventEnabled
             prefs[EXTERNAL_EVENT_CALENDAR_IDS] = config.externalEventCalendarIds.joinToString(",")
             prefs[SELECTED_CALENDAR_IDS] = config.selectedCalendarIds.joinToString(",")
