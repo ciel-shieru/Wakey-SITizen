@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
 import com.cielshieru.wakey.domain.model.NumericConfigField
@@ -73,6 +74,23 @@ class AlarmConfigStoreRingtoneTest {
 
         assertEquals(AlarmConfig.DEFAULT_ONLINE_OFFSET, loaded.onlineOffsetMinutes)
         assertTrue(explicitFields.isEmpty())
+        testFile.delete()
+    }
+
+    @Test
+    fun `legacy numeric defaults remain implicit while non-default values remain configured`() = runTest {
+        val testFile = File("/tmp/test_legacy_numeric_${System.nanoTime()}.preferences_pb")
+        val dataStore = PreferenceDataStoreFactory.create(produceFile = { testFile })
+
+        dataStore.edit { prefs ->
+            // Prior versions wrote every setting value whenever settings were saved.
+            prefs[intPreferencesKey("online_offset_minutes")] = AlarmConfig.DEFAULT_ONLINE_OFFSET
+            prefs[intPreferencesKey("campus_offset_minutes")] = 120
+        }
+
+        val explicitFields = dataStore.data.explicitNumericConfigFieldsFlow().first()
+
+        assertEquals(setOf(NumericConfigField.CAMPUS_OFFSET), explicitFields)
         testFile.delete()
     }
 
