@@ -82,11 +82,6 @@ fun ConcessionPassCalculatorScreen(
             override fun isSelectableYear(year: Int): Boolean = year >= uiState.today.year
         }
     }
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = uiState.startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        selectableDates = selectableDates
-    )
-
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -217,6 +212,12 @@ fun ConcessionPassCalculatorScreen(
     }
 
     if (showDatePicker) {
+        // Keep draft selection scoped to the dialog so cancelling cannot affect
+        // the date preselected when the dialog is opened again.
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = selectableDates
+        )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
