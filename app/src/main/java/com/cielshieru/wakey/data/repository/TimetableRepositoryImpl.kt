@@ -13,14 +13,10 @@ import com.cielshieru.wakey.domain.model.TimetableEvent
 import com.cielshieru.wakey.domain.port.CalendarEventSource
 import com.cielshieru.wakey.domain.port.TimetableRepository
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 class TimetableRepositoryImpl(
     private val timetableClient: TimetableClient,
@@ -67,9 +63,9 @@ class TimetableRepositoryImpl(
 
     /**
      * Fetches a complete forecast window without changing the app's alarm timetable cache.
-     * The remote endpoint returns four calendar days per date query, so a 30-day
-     * forecast needs eight queries. Device-calendar mode reads only the calendars
-     * already selected for the timetable, one day at a time.
+     * The configured remote endpoint accepts inclusive start/end dates, so remote
+     * mode uses one HTTP request. Device-calendar mode performs one range query over
+     * the calendars already selected for the timetable.
      */
     override suspend fun fetchEventsForRange(
         start: LocalDate,
@@ -111,22 +107,10 @@ class TimetableRepositoryImpl(
     private suspend fun fetchRemoteEventsForRange(
         start: LocalDate,
         endInclusive: LocalDate
-    ): List<TimetableEvent> = coroutineScope {
-        val queryDates = generateSequence(start) { it.plusDays(REMOTE_WINDOW_DAYS) }
-            .takeWhile { !it.isAfter(endInclusive) }
-            .toList()
-
-        val responses = queryDates.map { queryDate ->
-            async { timetableClient.fetch(queryDate) }
-        }.awaitAll()
-
-        val failure = responses.filterIsInstance<TimetableClient.Result.Error>().firstOrNull()
-        if (failure != null) throw failure.cause
-
-        responses.filterIsInstance<TimetableClient.Result.Success>()
-            .flatMap { response ->
-                response.response.events.map { event -> TimetableEvent.fromJson(event) }
-            }
+    ): List<TimetableEvent> = when (val result = timetableClient.fetch(start, endInclusive)) {
+        is TimetableClient.Result.Success ->
+            result.response.events.map { event -> TimetableEvent.fromJson(event) }
+        is TimetableClient.Result.Error -> throw result.cause
     }
 
     private suspend fun fetchDeviceCalendarEventsForRange(
@@ -138,13 +122,11 @@ class TimetableRepositoryImpl(
             throw IllegalStateException("No timetable calendars are selected.")
         }
 
-        val lastOffset = ChronoUnit.DAYS.between(start, endInclusive).toInt()
-        val externalEvents = (0..lastOffset).flatMap { offset ->
-            calendarEventSource.getTimetableEventsForDate(
-                start.plusDays(offset.toLong()),
-                config.selectedCalendarIds
-            )
-        }.filterNot { event ->
+        val externalEvents = calendarEventSource.getTimetableEventsForRange(
+            start = start,
+            endInclusive = endInclusive,
+            calendarIds = config.selectedCalendarIds
+        ).filterNot { event ->
             event.title.startsWith(BRIGHTSPACE_PREFIX, ignoreCase = true)
         }
 
@@ -172,7 +154,6 @@ class TimetableRepositoryImpl(
     }
 
     private companion object {
-        const val REMOTE_WINDOW_DAYS = 4L
         const val MAX_FORECAST_DAYS = 30L
         const val BRIGHTSPACE_PREFIX = "brightspace-"
     }
