@@ -67,17 +67,46 @@ class SystemCalendarSource(
     override suspend fun getTimetableEventsForDate(
         date: LocalDate,
         calendarIds: List<String>
-    ): List<ExternalEvent> = queryEventsForDate(date, calendarIds, includePeopleSoftMetadata = true)
+    ): List<ExternalEvent> = queryEventsForRange(
+        start = date,
+        endInclusive = date,
+        calendarIds = calendarIds,
+        includePeopleSoftMetadata = true
+    )
+
+    override suspend fun getTimetableEventsForRange(
+        start: LocalDate,
+        endInclusive: LocalDate,
+        calendarIds: List<String>
+    ): List<ExternalEvent> = queryEventsForRange(
+        start = start,
+        endInclusive = endInclusive,
+        calendarIds = calendarIds,
+        includePeopleSoftMetadata = true
+    )
 
     private suspend fun queryEventsForDate(
         date: LocalDate,
         calendarIds: List<String>,
         includePeopleSoftMetadata: Boolean
+    ): List<ExternalEvent> = queryEventsForRange(
+        start = date,
+        endInclusive = date,
+        calendarIds = calendarIds,
+        includePeopleSoftMetadata = includePeopleSoftMetadata
+    )
+
+    private suspend fun queryEventsForRange(
+        start: LocalDate,
+        endInclusive: LocalDate,
+        calendarIds: List<String>,
+        includePeopleSoftMetadata: Boolean
     ): List<ExternalEvent> = withContext(Dispatchers.IO) {
+        require(!endInclusive.isBefore(start)) { "The end date must not be before the start date." }
         if (calendarIds.isEmpty()) return@withContext emptyList()
 
-        val startMillis = date.atStartOfDay(zone).toInstant().toEpochMilli()
-        val endMillis = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val startMillis = start.atStartOfDay(zone).toInstant().toEpochMilli()
+        val endMillis = endInclusive.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon()
             .appendPath(startMillis.toString())
             .appendPath(endMillis.toString())
