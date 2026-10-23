@@ -9,6 +9,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.cielshieru.wakey.ui.home.HomeScreen
+import com.cielshieru.wakey.ui.concession.ConcessionPassCalculatorScreen
 import com.cielshieru.wakey.ui.ringtone.RingtonePickerScreen
 import com.cielshieru.wakey.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
@@ -28,7 +29,13 @@ fun WakeyNavHost(
         modifier = modifier
     ) {
         composable(Route.Home.route) {
-            HomeScreen(onNavigateToSettings = { navController.navigate(Route.Settings.route) })
+            HomeScreen(
+                onNavigateToSettings = { navController.navigate(Route.Settings.route) },
+                onNavigateToPassCalculator = { navController.navigate(Route.ConcessionPassCalculator.route) }
+            )
+        }
+        composable(Route.ConcessionPassCalculator.route) {
+            ConcessionPassCalculatorScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(Route.Settings.route) {
             Column(modifier = Modifier.fillMaxSize()) {

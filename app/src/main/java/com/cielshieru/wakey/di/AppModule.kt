@@ -121,11 +121,13 @@ object AppModule {
     @Singleton
     fun provideTimetableRepository(
         client: TimetableClient,
-        datastore: DataStore<Preferences>
+        datastore: DataStore<Preferences>,
+        calendarEventSource: CalendarEventSource
     ): TimetableRepository = TimetableRepositoryImpl(
         client,
         datastore,
-        datastore.data.configFlow()
+        datastore.data.configFlow(),
+        calendarEventSource
     )
 
     @Provides

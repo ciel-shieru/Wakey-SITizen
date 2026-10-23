@@ -21,6 +21,14 @@ import java.time.OffsetDateTime
 
 class TimetableRepositoryImplRemoteServerTest {
 
+    private object EmptyCalendarEventSource : com.cielshieru.wakey.domain.port.CalendarEventSource {
+        override suspend fun getEventsForDate(
+            date: java.time.LocalDate,
+            calendarIds: List<String>
+        ): List<com.cielshieru.wakey.domain.model.ExternalEvent> = emptyList()
+    }
+
+
     @Test
     fun `eventsFlow emits Remote Server events in RemoteServer mode`() = runTest {
         val remoteEvents = listOf(
@@ -73,7 +81,8 @@ class TimetableRepositoryImplRemoteServerTest {
         val repo = TimetableRepositoryImpl(
             timetableClient = TimetableClient(fakeRemoteServerProvider),
             datastore = datastore,
-            configFlow = configFlow
+            configFlow = configFlow,
+            calendarEventSource = EmptyCalendarEventSource
         )
 
         val events = repo.eventsFlow.first()
@@ -99,7 +108,8 @@ class TimetableRepositoryImplRemoteServerTest {
         val repo = TimetableRepositoryImpl(
             timetableClient = TimetableClient(fakeRemoteServerProvider),
             datastore = datastore,
-            configFlow = configFlow
+            configFlow = configFlow,
+            calendarEventSource = EmptyCalendarEventSource
         )
 
         val events = repo.eventsFlow.first()
@@ -152,7 +162,8 @@ class TimetableRepositoryImplRemoteServerTest {
         val repo = TimetableRepositoryImpl(
             timetableClient = TimetableClient(fakeRemoteServerProvider),
             datastore = datastore,
-            configFlow = configFlow
+            configFlow = configFlow,
+            calendarEventSource = EmptyCalendarEventSource
         )
 
         val events = repo.getEventsForDate(java.time.LocalDate.of(2026, 10, 14))

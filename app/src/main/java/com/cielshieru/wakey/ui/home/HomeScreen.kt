@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Cancel
@@ -24,6 +25,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun HomeScreen(
     onNavigateToSettings: () -> Unit,
+    onNavigateToPassCalculator: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -36,6 +38,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Wakey-SITizen") },
                 actions = {
+                    IconButton(onClick = onNavigateToPassCalculator) {
+                        Icon(Icons.Default.DirectionsBus, contentDescription = "Concession pass calculator")
+                    }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Default.Settings, "Settings")
                     }
