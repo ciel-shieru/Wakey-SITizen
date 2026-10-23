@@ -12,6 +12,9 @@ import com.cielshieru.wakey.domain.model.TimetableEvent
 import com.cielshieru.wakey.domain.port.Clock
 import com.cielshieru.wakey.domain.port.ZoneProvider
 import com.cielshieru.wakey.fakes.FakeAlarmRepository
+import com.cielshieru.wakey.fakes.FakeSyncUseCase
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import com.cielshieru.wakey.ui.ringtone.RingtonePickerEvent
 import com.cielshieru.wakey.ui.ringtone.RingtonePickerViewModel
 import kotlinx.coroutines.Dispatchers
@@ -47,12 +50,14 @@ class RingtonePlaylistIntegrationTest {
         fakeAlarmRepository = FakeAlarmRepository()
         viewModel = RingtonePickerViewModel(
             alarmRepository = fakeAlarmRepository,
-            ringtoneNameResolver = StubRingtoneNameResolver(context)
+            ringtoneNameResolver = StubRingtoneNameResolver(context),
+            syncUseCase = FakeSyncUseCase()
         )
     }
 
     @After
     fun tearDown() {
+        viewModel.viewModelScope.cancel()
         Dispatchers.resetMain()
     }
 

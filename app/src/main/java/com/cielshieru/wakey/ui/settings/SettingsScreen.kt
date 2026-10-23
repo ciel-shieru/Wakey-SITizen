@@ -1,5 +1,6 @@
 package com.cielshieru.wakey.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import kotlinx.coroutines.launch
 import com.cielshieru.wakey.data.calendar.getReadableCalendars
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.DiscoveryMode
@@ -241,15 +243,17 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val savedServerSettings by viewModel.savedServerSettings.collectAsState()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val navigateBack: () -> Unit = {
+        scope.launch {
+            viewModel.flushPendingAutoSave()
+            onNavigateBack()
+        }
+    }
+    BackHandler(onBack = navigateBack)
     var showTestAlarmDialog by remember { mutableStateOf(false) }
     val testAlarmCount = (uiState.maxRepeats.toIntOrNull() ?: AlarmConfig.DEFAULT_MAX_REPEATS)
         .coerceIn(1, 20)
-
-    LaunchedEffect(Unit) {
-        viewModel.configSaved.collect {
-            onShowSnackbar("Settings saved")
-        }
-    }
 
     LaunchedEffect(savedServerSettings.discoveryMode, savedServerSettings.remoteServerUrl) {
         if (savedServerSettings.discoveryMode == DiscoveryMode.RemoteServer) {
@@ -321,21 +325,8 @@ fun SettingsScreen(
             TopAppBar(
                 title = { Text("Settings") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = navigateBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = {
-                        if (uiState.externalEnabled &&
-                            uiState.externalCalendarIds.isEmpty()
-                        ) {
-                            onShowSnackbar("Select at least one calendar for external events")
-                            return@TextButton
-                        }
-                        viewModel.saveConfig()
-                    }) {
-                        Text("Save")
                     }
                 }
             )
@@ -349,6 +340,14 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
+            item {
+                Text(
+                    "Changes save automatically. Alarm schedules refresh after edits settle.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             item {
                 Text("Alarm Offsets", style = MaterialTheme.typography.titleLarge)
             }
