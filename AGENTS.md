@@ -56,6 +56,8 @@ app/src/main/java/com/cielshieru/wakey/
   - Coroutine testing uses `kotlinx.coroutines.test` `runTest`.
 - **ADRs**: All architectural decisions are in `docs/adr/`. They are the source of truth when code is ambiguous. New decisions get a new numbered ADR.
 - **Network**: The only allowed network destination is the SIT-ICS-Go base URL configured by the user. Do not add other hosts or endpoints outside that server. Status integration calls only `/status` and `/refresh` on the validated saved URL, disables redirects, and is shown only when the persisted discovery mode is `RemoteServer`. The status card shows job, IN4SIT, and xSITe statuses before the ETag/SHA-256 section, which is collapsed by default under `Expand to view details`.
+- **Concession-pass calculator**: Persist its two cost-input strings under dedicated DataStore keys in `ConcessionPassCalculatorStore`; do not write these fields into alarm configuration or trigger the settings auto-sync pipeline.
+- **Pass-start optimization**: Fetch the next 60 inclusive calendar days exactly once, then rank the top three dates for each pass by evaluating 30 inclusive 30-day candidate windows locally. Reuse the pure domain calculator and never mutate normal timetable cache or alarm scheduling state (ADR-0024).
 - **No GMS**: The app must never depend on Google Play Services.
 
 ## Gotchas
