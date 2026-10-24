@@ -18,16 +18,17 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class ConcessionPassBestStartDatesUiState(
     val today: LocalDate,
-    val isLoading: Boolean = true,
+    val startDate: LocalDate = today,
+    val isLoading: Boolean = false,
     val recommendations: Map<MonthlyConcessionPass, List<ConcessionPassStartDateRecommendation>> = emptyMap(),
     val loadError: String? = null
 )
@@ -41,91 +42,121 @@ class ConcessionPassBestStartDatesViewModel @Inject constructor(
     private val zoneProvider: ZoneProvider
 ) : ViewModel() {
 
-    private val today = LocalDate.ofInstant(clock.now(), zoneProvider.zone)
-    private val retryCounter = MutableStateFlow(0)
+    private fun currentDate(): LocalDate = LocalDate.ofInstant(clock.now(), zoneProvider.zone)
 
-    private val _uiState = MutableStateFlow(ConcessionPassBestStartDatesUiState(today = today))
+    private val initialDate = currentDate()
+    private val _uiState = MutableStateFlow(
+        ConcessionPassBestStartDatesUiState(today = initialDate, startDate = initialDate)
+    )
     val uiState = _uiState.asStateFlow()
+    private var loadJob: Job? = null
 
-    init {
-        viewModelScope.launch {
-            retryCounter.collect {
-                _uiState.update {
-                    it.copy(isLoading = true, recommendations = emptyMap(), loadError = null)
-                }
-                loadRecommendations()
-            }
-        }
+    /** Starts a fresh, screen-scoped calculation whenever the optimizer is entered. */
+    fun start() {
+        val date = currentDate()
+        _uiState.value = ConcessionPassBestStartDatesUiState(today = date, startDate = date)
+        loadRecommendations(date)
     }
 
-    private suspend fun loadRecommendations() {
-        try {
-            val costs = datastore.data.concessionPassCostsFlow().first()
-            val toCampusCents = ConcessionPassCalculator.parseCostToCents(costs.toCampusCostInput)
-            val fromCampusCents = ConcessionPassCalculator.parseCostToCents(costs.fromCampusCostInput)
-            if (toCampusCents == null || fromCampusCents == null) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        loadError = "Enter valid average home-to-campus and campus-to-home trip costs in the calculator, then try again."
-                    )
-                }
-                return
-            }
+    /** Clears transient optimizer state and cancels any in-flight request when leaving. */
+    fun reset() {
+        loadJob?.cancel()
+        loadJob = null
+        val date = currentDate()
+        _uiState.value = ConcessionPassBestStartDatesUiState(
+            today = date,
+            startDate = date,
+            isLoading = false
+        )
+    }
 
-            val config = alarmRepository.config.first()
-            // One fetch supplies every candidate's inclusive 30-day calculation:
-            // the final candidate starts 29 days from today and ends 58 days out.
-            val result = timetableRepository.fetchEventsForRange(
-                start = today,
-                endInclusive = today.plusDays(FETCH_DAYS - 1L)
+    fun selectStartDate(date: LocalDate) {
+        val today = currentDate()
+        if (date.isBefore(today) || date == _uiState.value.startDate) return
+        _uiState.update {
+            it.copy(
+                startDate = date,
+                isLoading = true,
+                recommendations = emptyMap(),
+                loadError = null
             )
-
-            result.fold(
-                onSuccess = { events ->
-                    val recommendations = ConcessionPassCalculator.rankBestStartDates(
-                        events = events,
-                        toCampusCents = toCampusCents,
-                        fromCampusCents = fromCampusCents,
-                        firstCandidateDate = today,
-                        candidateDays = SEARCH_DAYS,
-                        topCount = TOP_RESULTS
-                    )
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            recommendations = recommendations,
-                            loadError = null
-                        )
-                    }
-                },
-                onFailure = {
-                    val message = when (config.discoveryMode) {
-                        DiscoveryMode.RemoteServer ->
-                            "Unable to load the next 60 days of timetable events. Check the configured server connection and retry."
-                        DiscoveryMode.DeviceCalendar ->
-                            "Unable to load the next 60 days of timetable events. Check the selected calendars and retry."
-                    }
-                    _uiState.update {
-                        it.copy(isLoading = false, recommendations = emptyMap(), loadError = message)
-                    }
-                }
-            )
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Exception) {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    recommendations = emptyMap(),
-                    loadError = error.message ?: "Unable to calculate the best pass start dates."
-                )
-            }
         }
+        loadRecommendations(date)
     }
 
     fun retry() {
-        retryCounter.update { it + 1 }
+        loadRecommendations(_uiState.value.startDate)
+    }
+
+    private fun loadRecommendations(startDate: LocalDate) {
+        loadJob?.cancel()
+        _uiState.update {
+            it.copy(isLoading = true, recommendations = emptyMap(), loadError = null)
+        }
+        loadJob = viewModelScope.launch {
+            try {
+                val costs = datastore.data.concessionPassCostsFlow().first()
+                val toCampusCents = ConcessionPassCalculator.parseCostToCents(costs.toCampusCostInput)
+                val fromCampusCents = ConcessionPassCalculator.parseCostToCents(costs.fromCampusCostInput)
+                if (toCampusCents == null || fromCampusCents == null) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            loadError = "Enter valid average home-to-campus and campus-to-home trip costs in the calculator, then try again."
+                        )
+                    }
+                    return@launch
+                }
+
+                val config = alarmRepository.config.first()
+                // One fetch covers the 60-day range beginning on the selected optimizer date.
+                val result = timetableRepository.fetchEventsForRange(
+                    start = startDate,
+                    endInclusive = startDate.plusDays(FETCH_DAYS - 1L)
+                )
+
+                result.fold(
+                    onSuccess = { events ->
+                        val recommendations = ConcessionPassCalculator.rankBestStartDates(
+                            events = events,
+                            toCampusCents = toCampusCents,
+                            fromCampusCents = fromCampusCents,
+                            firstCandidateDate = startDate,
+                            candidateDays = SEARCH_DAYS,
+                            topCount = TOP_RESULTS
+                        )
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                recommendations = recommendations,
+                                loadError = null
+                            )
+                        }
+                    },
+                    onFailure = {
+                        val message = when (config.discoveryMode) {
+                            DiscoveryMode.RemoteServer ->
+                                "Unable to load the 60-day timetable range beginning ${startDate}. Check the configured server connection and retry."
+                            DiscoveryMode.DeviceCalendar ->
+                                "Unable to load the 60-day timetable range beginning ${startDate}. Check the selected calendars and retry."
+                        }
+                        _uiState.update {
+                            it.copy(isLoading = false, recommendations = emptyMap(), loadError = message)
+                        }
+                    }
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        recommendations = emptyMap(),
+                        loadError = error.message ?: "Unable to calculate the best pass start dates."
+                    )
+                }
+            }
+        }
     }
 
     private companion object {
