@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cielshieru.wakey.di.ConcessionPassDataStoreQualifier
 import com.cielshieru.wakey.data.store.concessionPassCostsFlow
 import com.cielshieru.wakey.domain.ConcessionPassCalculator
 import com.cielshieru.wakey.domain.MonthlyConcessionPass
@@ -33,7 +34,7 @@ data class ConcessionPassBestStartDatesUiState(
 
 @HiltViewModel
 class ConcessionPassBestStartDatesViewModel @Inject constructor(
-    private val datastore: DataStore<Preferences>,
+    @ConcessionPassDataStoreQualifier private val datastore: DataStore<Preferences>,
     private val alarmRepository: AlarmRepository,
     private val timetableRepository: TimetableRepository,
     private val clock: Clock,
