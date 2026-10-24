@@ -1,7 +1,11 @@
 package com.cielshieru.wakey.ui.concession
 
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cielshieru.wakey.data.store.concessionPassCostsFlow
+import com.cielshieru.wakey.data.store.saveConcessionPassCosts
 import com.cielshieru.wakey.domain.ConcessionPassCalculator
 import com.cielshieru.wakey.domain.model.DiscoveryMode
 import com.cielshieru.wakey.domain.port.AlarmRepository
@@ -11,6 +15,9 @@ import com.cielshieru.wakey.domain.port.ZoneProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
@@ -39,6 +46,7 @@ data class ConcessionPassCalculatorUiState(
 
 @HiltViewModel
 class ConcessionPassCalculatorViewModel @Inject constructor(
+    private val datastore: DataStore<Preferences>,
     private val alarmRepository: AlarmRepository,
     private val timetableRepository: TimetableRepository,
     private val clock: Clock,
@@ -48,6 +56,8 @@ class ConcessionPassCalculatorViewModel @Inject constructor(
     private val currentDate = LocalDate.ofInstant(clock.now(), zoneProvider.zone)
     private val selectedStartDate = MutableStateFlow(currentDate)
     private val retryCounter = MutableStateFlow(0)
+    private var hasUserEditedCosts = false
+    private var costSaveJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         ConcessionPassCalculatorUiState(
@@ -58,6 +68,18 @@ class ConcessionPassCalculatorViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            val savedCosts = datastore.data.concessionPassCostsFlow().first()
+            if (!hasUserEditedCosts) {
+                _uiState.update {
+                    it.copy(
+                        toCampusCostInput = savedCosts.toCampusCostInput,
+                        fromCampusCostInput = savedCosts.fromCampusCostInput
+                    )
+                }
+            }
+        }
+
         viewModelScope.launch {
             combine(selectedStartDate, alarmRepository.config, retryCounter) { date, config, retry ->
                 Triple(date, config, retry)
@@ -110,14 +132,50 @@ class ConcessionPassCalculatorViewModel @Inject constructor(
 
     fun updateToCampusCost(value: String) {
         if (ConcessionPassCalculator.isCostInputAllowed(value)) {
+            hasUserEditedCosts = true
             _uiState.update { it.copy(toCampusCostInput = value) }
+            scheduleCostSave()
         }
     }
 
     fun updateFromCampusCost(value: String) {
         if (ConcessionPassCalculator.isCostInputAllowed(value)) {
+            hasUserEditedCosts = true
             _uiState.update { it.copy(fromCampusCostInput = value) }
+            scheduleCostSave()
         }
+    }
+
+    /**
+     * Flushes in-progress input persistence before navigating so the optimizer
+     * always reads the exact costs currently shown in the calculator.
+     */
+    fun saveCostsThenNavigate(onNavigate: () -> Unit) {
+        viewModelScope.launch {
+            costSaveJob?.cancelAndJoin()
+            persistCosts()
+            onNavigate()
+        }
+    }
+
+    private fun scheduleCostSave() {
+        costSaveJob?.cancel()
+        costSaveJob = viewModelScope.launch {
+            delay(COST_SAVE_DEBOUNCE_MILLIS)
+            persistCosts()
+        }
+    }
+
+    private suspend fun persistCosts() {
+        val state = _uiState.value
+        datastore.saveConcessionPassCosts(
+            toCampusCostInput = state.toCampusCostInput,
+            fromCampusCostInput = state.fromCampusCostInput
+        )
+    }
+
+    private companion object {
+        const val COST_SAVE_DEBOUNCE_MILLIS = 300L
     }
 
     fun selectStartDate(date: LocalDate) {
