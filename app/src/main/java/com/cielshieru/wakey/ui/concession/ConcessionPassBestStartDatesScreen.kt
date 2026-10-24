@@ -14,25 +14,37 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import com.cielshieru.wakey.domain.ConcessionPassStartDateRecommendation
 import com.cielshieru.wakey.domain.MonthlyConcessionPass
+import java.time.Instant
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -49,6 +61,25 @@ fun ConcessionPassBestStartDatesScreen(
     viewModel: ConcessionPassBestStartDatesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val selectableDates = remember(uiState.today) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val selectedDate = Instant.ofEpochMilli(utcTimeMillis)
+                    .atZone(ZoneOffset.UTC)
+                    .toLocalDate()
+                return !selectedDate.isBefore(uiState.today)
+            }
+
+            override fun isSelectableYear(year: Int): Boolean = year >= uiState.today.year
+        }
+    }
+
+    DisposableEffect(viewModel) {
+        viewModel.start()
+        onDispose { viewModel.reset() }
+    }
 
     Scaffold(
         modifier = modifier,
@@ -73,14 +104,22 @@ fun ConcessionPassBestStartDatesScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Best start dates from ${uiState.today.format(bestDateFormatter)}",
+                        text = "Compare pass start dates from ${uiState.startDate.format(bestDateFormatter)}",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "The app fetches the next 60 days of timetable events once, then compares each 30-day pass window starting today or on any of the following 29 days. The top three dates for each pass are ranked by estimated savings.",
+                        text = "Choose the first day of the optimizer's 60-day timetable fetch. The app compares 30-day pass windows starting on that date or any of the following 29 days, then ranks the top three dates for each pass by estimated savings.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    OutlinedButton(
+                        onClick = { showDatePicker = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CalendarToday, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Optimizer start date: ${uiState.startDate.format(bestDateFormatter)}")
+                    }
                 }
             }
 
@@ -134,6 +173,44 @@ fun ConcessionPassBestStartDatesScreen(
                 }
             }
             item { Spacer(Modifier.height(4.dp)) }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.startDate
+                .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = selectableDates
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val selectedDate = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
+                            viewModel.selectStartDate(selectedDate)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Confirm")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = false,
+                title = { Text("Select optimizer start date") },
+                headline = { Text("Choose the first day of the 60-day fetch") }
+            )
         }
     }
 }
