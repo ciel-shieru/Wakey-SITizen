@@ -20,7 +20,7 @@ The app supports two configured timetable discovery modes: a remote SIT-ICS-Go s
 - Read the next 60 inclusive calendar days of timetable events exactly once from the configured source. Remote Server mode uses one inclusive-range HTTP request; Device Calendar mode uses one selected-calendar range query.
 - Evaluate every candidate start date from today through today + 29 days. Each candidate uses the existing calculator's inclusive 30-day campus-visit and integer-cent fare calculation. The 60-day source range covers the final candidate window through today + 58 days.
 - For each pass type, rank the three candidate dates with the highest net savings: estimated fares without a pass minus the pass price. Negative values represent losses; equal results prefer the earlier start date.
-- Persist the two average trip-cost input strings under dedicated DataStore keys. Do not write them into alarm configuration or trigger the settings auto-sync pipeline.
+- Persist the two average trip-cost input strings in a dedicated Preferences DataStore instance named `concession_pass_calculator`. Do not write them into the alarm settings DataStore, emit alarm-config changes, or trigger the settings auto-sync pipeline.
 - Keep the optimization forecast read-only: do not modify the regular timetable cache, selected start date, or alarm schedule.
 
 ## Consequences
@@ -29,7 +29,7 @@ The app supports two configured timetable discovery modes: a remote SIT-ICS-Go s
 
 - All 90 candidate/pass combinations are computed locally from one fetched event set.
 - Candidate comparisons use exactly the same campus-day counting, integer-cent arithmetic, and pass prices as the existing calculator.
-- The two input fields survive app restarts without creating an alarm settings change or sync run.
+- The two input fields survive app restarts without emitting alarm-config changes or creating a sync run.
 - Remote and device-calendar mode continue using their existing configured data sources.
 
 ### Negative
