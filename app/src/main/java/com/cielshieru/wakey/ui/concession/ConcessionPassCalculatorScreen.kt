@@ -64,6 +64,7 @@ private const val FOOTNOTE =
 @Composable
 fun ConcessionPassCalculatorScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToBestStartDates: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ConcessionPassCalculatorViewModel = hiltViewModel()
 ) {
@@ -207,6 +208,20 @@ fun ConcessionPassCalculatorScreen(
                     eventsLoaded = uiState.campusVisitDays != null
                 )
             }
+            item {
+                OutlinedButton(
+                    onClick = {
+                        viewModel.saveCostsThenNavigate(onNavigateToBestStartDates)
+                    },
+                    enabled = ConcessionPassCalculator.parseCostToCents(uiState.toCampusCostInput) != null &&
+                        ConcessionPassCalculator.parseCostToCents(uiState.fromCampusCostInput) != null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.CalendarToday, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Find the best pass start dates")
+                }
+            }
             item { Spacer(Modifier.height(4.dp)) }
         }
     }
@@ -262,11 +277,32 @@ private fun PassRecommendationRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "${pass.label} (${formatSgd(pass.priceCents)})",
+        Column(
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium
-        )
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = "${pass.label} (${formatSgd(pass.priceCents)})",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            totalCostCents?.let { total ->
+                val netSavings = ConcessionPassCalculator.savingsCents(total, pass)
+                val savingsText = when {
+                    netSavings > 0L -> "Save ${formatSgd(netSavings)}"
+                    netSavings < 0L -> "Loss of ${formatSgd(-netSavings)}"
+                    else -> "Break-even"
+                }
+                Text(
+                    text = savingsText,
+                    color = when {
+                        netSavings > 0L -> recommendationGreen
+                        netSavings < 0L -> recommendationRed
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
         Spacer(Modifier.width(8.dp))
         when {
             totalCostCents == null -> {
