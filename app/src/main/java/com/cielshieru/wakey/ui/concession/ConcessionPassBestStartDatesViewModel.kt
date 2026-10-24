@@ -18,6 +18,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -114,6 +116,7 @@ class ConcessionPassBestStartDatesViewModel @Inject constructor(
                     start = startDate,
                     endInclusive = startDate.plusDays(FETCH_DAYS - 1L)
                 )
+                currentCoroutineContext().ensureActive()
 
                 result.fold(
                     onSuccess = { events ->
