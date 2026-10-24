@@ -115,6 +115,10 @@ object ConcessionPassCalculator {
         }
     }
 
+    /** Positive is money saved; negative means paying more for the pass than fares. */
+    fun savingsCents(totalCostCents: Long, pass: MonthlyConcessionPass): Long =
+        totalCostCents - pass.priceCents
+
     /** A pass is worth buying only when its price is strictly below the fare total. */
     fun shouldBuy(totalCostCents: Long, pass: MonthlyConcessionPass): Boolean =
         totalCostCents > pass.priceCents
