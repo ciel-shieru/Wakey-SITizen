@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.lifecycle.viewModelScope
+import com.cielshieru.wakey.data.store.AlarmConfigStore.explicitNumericConfigFieldsFlow
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import com.cielshieru.wakey.domain.model.RingtonePlaylist
 import com.cielshieru.wakey.domain.model.PermissionEntry
@@ -80,6 +81,13 @@ class SettingsViewModelDebugStateTest {
         syncUseCase = FakeSyncUseCase()
         clock = FakeClock().apply { set(Instant.parse("2026-10-20T05:46:40Z")) }
         zoneProvider = FakeZoneProvider().apply { zone = ZoneId.of("Asia/Singapore") }
+
+        // Ensure the persisted-fields flow has emitted before constructing the ViewModel.
+        // Otherwise its initial combine collector may race test mutations and overwrite
+        // debug state, producing intermittent failures in direct state assertions.
+        runBlocking {
+            dataStore.data.explicitNumericConfigFieldsFlow().first()
+        }
 
         viewModel = SettingsViewModel(
             alarmRepository = alarmRepository,

@@ -26,6 +26,11 @@ import kotlinx.coroutines.withContext
  * The remote server URL is user-configured, so it is resolved through [remoteServerProvider]
  * at fetch time (the provider reads it from DataStore).
  *
+ * A missing date requests the normal full timetable; a start date alone preserves
+ * the server's historical four-day window. Supplying [endDate] requests one
+ * inclusive start/end range. Range queries are used only by the concession-pass
+ * forecast; normal sync fetches retain their existing calls.
+ *
  * Failure contract: [fetch] never throws. Network errors, non-2xx responses,
  * malformed JSON, and unsupported `schema_version` values all yield
  * [Result.Error], letting callers apply the stale-while-revalidate fallback
@@ -47,14 +52,14 @@ class TimetableClient(
         .callTimeout(CONNECT_TIMEOUT)
         .build()
 
-    suspend fun fetch(date: LocalDate? = null): Result = try {
+    suspend fun fetch(date: LocalDate? = null, endDate: LocalDate? = null): Result = try {
         val remoteServerUrl = remoteServerProvider.remoteServerUrl.first().trim().trimEnd('/')
         if (remoteServerUrl.isEmpty()) {
             Result.Error(
                 IllegalStateException("Timetable remote server URL is not configured")
             )
         } else {
-            val body = withContext(Dispatchers.IO) { httpGet(buildTimetableUrl(remoteServerUrl, date)) }
+            val body = withContext(Dispatchers.IO) { httpGet(buildTimetableUrl(remoteServerUrl, date, endDate)) }
             val response = JsonConfig.instance.decodeFromString<WakeyResponse>(body)
             if (response.schema_version < MIN_SUPPORTED_SCHEMA_VERSION) {
                 Result.Error(
@@ -90,11 +95,21 @@ class TimetableClient(
          * Builds the timetable URL and, when supplied, adds the server's date-window
          * query without string-concatenating untrusted URL components.
          */
-        internal fun buildTimetableUrl(remoteServerUrl: String, date: LocalDate?): String {
+        internal fun buildTimetableUrl(
+            remoteServerUrl: String,
+            date: LocalDate?,
+            endDate: LocalDate? = null
+        ): String {
             val url = (remoteServerUrl.trim().trimEnd('/') + PATH).toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("Timetable remote server URL is invalid")
-            return date?.let { url.newBuilder().addQueryParameter("date", it.toString()).build() }?.toString()
-                ?: url.toString()
+            if (endDate != null) {
+                require(date != null) { "A start date is required when an end date is supplied." }
+                require(!endDate.isBefore(date)) { "The end date must be on or after the start date." }
+            }
+            val builder = url.newBuilder()
+            date?.let { builder.addQueryParameter("date", it.toString()) }
+            endDate?.let { builder.addQueryParameter("end_date", it.toString()) }
+            return builder.build().toString()
         }
     }
 }

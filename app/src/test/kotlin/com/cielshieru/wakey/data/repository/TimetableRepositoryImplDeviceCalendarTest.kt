@@ -26,6 +26,14 @@ import java.time.ZoneId
 
 class TimetableRepositoryImplDeviceCalendarTest {
 
+    private object EmptyCalendarEventSource : com.cielshieru.wakey.domain.port.CalendarEventSource {
+        override suspend fun getEventsForDate(
+            date: java.time.LocalDate,
+            calendarIds: List<String>
+        ): List<com.cielshieru.wakey.domain.model.ExternalEvent> = emptyList()
+    }
+
+
     private val zone = ZoneId.of("Asia/Singapore")
 
     @Test
@@ -335,7 +343,8 @@ class TimetableRepositoryImplDeviceCalendarTest {
         return TimetableRepositoryImpl(
             timetableClient = timetableClient,
             datastore = datastore,
-            configFlow = configFlow
+            configFlow = configFlow,
+            calendarEventSource = EmptyCalendarEventSource
         )
     }
 }
