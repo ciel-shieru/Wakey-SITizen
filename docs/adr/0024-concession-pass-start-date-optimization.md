@@ -10,18 +10,19 @@ Proposed
 
 ## Context
 
-The monthly concession-pass calculator evaluates one inclusive 30-day period. Finding a good pass start date manually would require changing the selected date repeatedly and waiting for the same timetable data to load over and over.
+The monthly concession-pass calculator evaluates one inclusive 30-day period. Finding a good pass start date manually would require changing the selected date repeatedly and waiting for the same timetable data to load over and over. The optimizer therefore needs its own independent forecast start date and screen-scoped transient results.
 
 The app supports two configured timetable discovery modes: a remote SIT-ICS-Go server and selected device calendars. Optimization must respect the current source configuration, avoid broadening calendar access, and avoid changing cached timetable events used for alarm scheduling.
 
 ## Decision
 
 - Add a separate best-start-date screen launched from the calculator results.
-- Read the next 60 inclusive calendar days of timetable events exactly once from the configured source. Remote Server mode uses one inclusive-range HTTP request; Device Calendar mode uses one selected-calendar range query.
-- Evaluate every candidate start date from today through today + 29 days. Each candidate uses the existing calculator's inclusive 30-day campus-visit and integer-cent fare calculation. The 60-day source range covers the final candidate window through today + 58 days.
+- On each screen entry, default the optimizer's independent start date to the current local date and let the user select today or a future date. This selector does not alter the calculator screen's selected date.
+- Read the 60 inclusive calendar days from the selected optimizer date through selected date + 59 exactly once from the configured source. Remote Server mode uses one inclusive-range HTTP request; Device Calendar mode uses one selected-calendar range query.
+- Evaluate every candidate start date from the selected date through selected date + 29 days. Each candidate uses the existing calculator's inclusive 30-day campus-visit and integer-cent fare calculation. The 60-day source range covers the final candidate window through selected date + 58 days.
 - For each pass type, rank the three candidate dates with the highest net savings: estimated fares without a pass minus the pass price. Negative values represent losses; equal results prefer the earlier start date.
 - Persist the two average trip-cost input strings in a dedicated Preferences DataStore instance named `concession_pass_calculator`. Do not write them into the alarm settings DataStore, emit alarm-config changes, or trigger the settings auto-sync pipeline.
-- Keep the optimization forecast read-only: do not modify the regular timetable cache, selected start date, or alarm schedule.
+- Keep the optimization forecast read-only: do not modify the regular timetable cache, calculator screen's selected date, or alarm schedule. Keep optimizer dates and recommendations in memory only; cancel in-flight work and reset the optimizer state when leaving the screen.
 
 ## Consequences
 
@@ -35,6 +36,7 @@ The app supports two configured timetable discovery modes: a remote SIT-ICS-Go s
 ### Negative
 
 - The optimizer reads a 60-day forecast range and may take longer than the ordinary 30-day calculator request.
+- Leaving the screen discards the chosen optimizer date and results, so the user must select the date again after re-entering.
 - A fetch failure prevents ranking, rather than being treated as an empty timetable and producing misleading savings.
 
 ## References
