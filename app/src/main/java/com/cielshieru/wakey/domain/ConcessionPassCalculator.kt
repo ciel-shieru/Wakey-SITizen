@@ -106,7 +106,7 @@ object ConcessionPassCalculator {
                     startDate = startDate,
                     campusVisitDays = visitDays,
                     estimatedTransportCostCents = totalCost,
-                    netSavingsCents = totalCost - pass.priceCents
+                    netSavingsCents = savingsCents(totalCost, pass)
                 )
             }.sortedWith(
                 compareByDescending<ConcessionPassStartDateRecommendation> { it.netSavingsCents }
