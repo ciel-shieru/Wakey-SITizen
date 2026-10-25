@@ -7,7 +7,7 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Bundle
 import android.os.SystemClock
-import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import com.cielshieru.wakey.data.store.AlarmConfigStore.configFlow
 import com.cielshieru.wakey.data.store.AlarmStore.schedulesFlow
 import com.cielshieru.wakey.data.store.PebbleExportStore
@@ -45,8 +45,9 @@ class PebbleExportProvider : ContentProvider() {
                 val preferences = store.data.first()
                 val schedules = store.data.schedulesFlow().first().orEmpty()
                 val config = store.data.configFlow().first()
-                val updatedAt = preferences[longPreferencesKey(LAST_SYNC_TIME_KEY)]
-                    ?.let { Instant.ofEpochMilli(it) } ?: now
+                val updatedAt = preferences[stringPreferencesKey(LAST_SYNC_TIME_KEY)]
+                    ?.toLongOrNull()
+                    ?.let(Instant::ofEpochMilli) ?: now
 
                 PebbleExportSnapshotFactory.create(schedules, config, now, updatedAt)
             } ?: return unavailable()
