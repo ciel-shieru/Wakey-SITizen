@@ -29,6 +29,18 @@
             android:authorities="${applicationId}.androidx-startup"
             tools:node="remove" />
         
+
+        <!--
+            Exported intentionally for opt-in third-party pairing. No URI grants are
+            enabled; all calls require the user-generated pairing token.
+        -->
+        <provider
+            android:name=".android.PebbleExportProvider"
+            android:authorities="com.cielshieru.wakey.pebble-export"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            tools:ignore="ExportedContentProvider" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
