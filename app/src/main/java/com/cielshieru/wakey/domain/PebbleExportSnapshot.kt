@@ -22,19 +22,27 @@ object PebbleExportSnapshotFactory {
         val nextAlarmAt = schedules
             .flatMap { schedule ->
                 buildList {
-                    add(schedule.firstAlarmTime)
+                    schedule.firstAlarmTime?.let { add(it) }
                     schedule.alarms.forEach { add(it.triggerAt) }
                 }
             }
             .filter { it.isAfter(now) }
             .minOrNull()
 
+        if (nextAlarmAt == null) {
+            return PebbleExportSnapshot(
+                nextAlarmAt = null,
+                bedtimeAt = null,
+                calculatedAt = now,
+                updatedAt = updatedAt,
+            )
+        }
+
+        val nextAlarm = nextAlarmAt
         val computedBedtime = BedtimeComputer
             .compute(schedules, config, now)
             ?.bedtimeAt
-            ?.takeIf { bedtime ->
-                nextAlarmAt != null && bedtime.isAfter(now) && bedtime.isBefore(nextAlarmAt)
-            }
+            ?.takeIf { bedtime -> bedtime.isAfter(now) && bedtime.isBefore(nextAlarm) }
 
         return PebbleExportSnapshot(
             nextAlarmAt = nextAlarmAt,
