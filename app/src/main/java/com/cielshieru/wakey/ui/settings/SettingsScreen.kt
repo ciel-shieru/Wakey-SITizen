@@ -769,6 +769,14 @@ fun SettingsScreen(
             }
 
             item {
+                Text("Pebble integration", style = MaterialTheme.typography.titleLarge)
+            }
+
+            item {
+                PebbleExportCard()
+            }
+
+            item {
                 Text("Permissions", style = MaterialTheme.typography.titleLarge)
             }
 

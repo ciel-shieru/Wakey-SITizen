@@ -209,6 +209,8 @@ class SettingsViewModelDebugStateTest {
 
         viewModel.testAlarmNow(1)
         viewModel.testAlarmNow(3)
+        // testAlarmNow schedules through viewModelScope; drain queued work before assertions.
+        runCurrent()
 
         assertEquals(2, alarmRepository.scheduledAlarms.size)
         val (firstAlarm, firstDay) = alarmRepository.scheduledAlarms[0]
