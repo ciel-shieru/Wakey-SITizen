@@ -23,7 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -101,8 +100,11 @@ class SettingsViewModelDebugStateTest {
 
     @After
     fun tearDown() {
-        viewModel.viewModelScope.cancel()
         runBlocking {
+            // Finish ViewModel coroutines before shutting down DataStore or resetting Main.
+            // Otherwise a late exception from an auto-save/collector can leak into the
+            // next runTest and surface there as UncaughtExceptionsBeforeTest.
+            viewModel.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
             dataStoreScope.coroutineContext[Job]?.cancelAndJoin()
         }
         Dispatchers.resetMain()
