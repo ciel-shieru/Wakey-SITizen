@@ -23,7 +23,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -82,9 +81,9 @@ class SettingsViewModelDebugStateTest {
         clock = FakeClock().apply { set(Instant.parse("2026-10-20T05:46:40Z")) }
         zoneProvider = FakeZoneProvider().apply { zone = ZoneId.of("Asia/Singapore") }
 
-        // Ensure the persisted-fields flow has emitted before constructing the ViewModel.
-        // Otherwise its initial combine collector may race test mutations and overwrite
-        // debug state, producing intermittent failures in direct state assertions.
+        // Prime the persisted-fields flow before constructing the ViewModel, then wait
+        // for the first combined config emission. Without the latter, mutations in a
+        // test can be overwritten by the asynchronous initial config load.
         runBlocking {
             dataStore.data.explicitNumericConfigFieldsFlow().first()
         }
@@ -97,12 +96,18 @@ class SettingsViewModelDebugStateTest {
             clock = clock,
             zoneProvider = zoneProvider
         )
+        runBlocking {
+            viewModel.initialConfigLoaded.first { it }
+        }
     }
 
     @After
     fun tearDown() {
-        viewModel.viewModelScope.cancel()
         runBlocking {
+            // Finish ViewModel coroutines before shutting down DataStore or resetting Main.
+            // Otherwise a late exception from an auto-save/collector can leak into the
+            // next runTest and surface there as UncaughtExceptionsBeforeTest.
+            viewModel.viewModelScope.coroutineContext[Job]?.cancelAndJoin()
             dataStoreScope.coroutineContext[Job]?.cancelAndJoin()
         }
         Dispatchers.resetMain()

@@ -133,6 +133,8 @@ class SettingsViewModel @Inject constructor(
     private var autoSaveJob: Job? = null
     private val configSaveMutex = Mutex()
     private var hasLoadedInitialConfig = false
+    private val _initialConfigLoaded = MutableStateFlow(false)
+    internal val initialConfigLoaded: StateFlow<Boolean> = _initialConfigLoaded.asStateFlow()
 
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -192,6 +194,7 @@ class SettingsViewModel @Inject constructor(
                 if (!hasLoadedInitialConfig) {
                     _uiState.value = state
                     hasLoadedInitialConfig = true
+                    _initialConfigLoaded.value = true
                 }
             }
         }
