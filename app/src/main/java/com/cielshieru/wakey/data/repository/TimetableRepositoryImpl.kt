@@ -155,7 +155,7 @@ class TimetableRepositoryImpl(
     }
 
     private companion object {
-        const val MAX_FORECAST_DAYS = 30L
+        const val MAX_FORECAST_DAYS = 60L
         const val BRIGHTSPACE_PREFIX = "brightspace-"
     }
 }

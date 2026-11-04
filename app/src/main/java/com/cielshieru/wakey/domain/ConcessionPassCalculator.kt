@@ -15,6 +15,14 @@ enum class MonthlyConcessionPass(
     BUS_TRAIN_HYBRID("Bus+Train (Hybrid) Pass", 8_100L)
 }
 
+data class ConcessionPassStartDateRecommendation(
+    val startDate: LocalDate,
+    val campusVisitDays: Int,
+    val estimatedTransportCostCents: Long,
+    /** Positive is savings, zero is break-even, and negative is a loss. */
+    val netSavingsCents: Long
+)
+
 /** Pure fare calculations using integer cents to avoid floating-point rounding. */
 object ConcessionPassCalculator {
     const val WINDOW_DAYS = 30L
@@ -66,6 +74,50 @@ object ConcessionPassCalculator {
             null
         }
     }
+
+    /**
+     * Ranks candidate pass start dates by the net amount saved versus paying
+     * regular fares. Ties are stable and prefer the earlier date.
+     */
+    fun rankBestStartDates(
+        events: Iterable<TimetableEvent>,
+        toCampusCents: Long,
+        fromCampusCents: Long,
+        firstCandidateDate: LocalDate,
+        candidateDays: Int = WINDOW_DAYS.toInt(),
+        topCount: Int = 3
+    ): Map<MonthlyConcessionPass, List<ConcessionPassStartDateRecommendation>> {
+        require(toCampusCents >= 0L && fromCampusCents >= 0L) {
+            "Trip costs must not be negative."
+        }
+        require(candidateDays in 1..WINDOW_DAYS.toInt()) {
+            "Candidate dates must cover between 1 and ${WINDOW_DAYS} days."
+        }
+        require(topCount > 0) { "The number of ranked dates must be positive." }
+
+        val eventSnapshot = events.toList()
+        return MonthlyConcessionPass.values().associateWith { pass ->
+            (0 until candidateDays).mapNotNull { offset ->
+                val startDate = firstCandidateDate.plusDays(offset.toLong())
+                val visitDays = campusVisitCount(eventSnapshot, startDate)
+                val totalCost = totalCostCents(toCampusCents, fromCampusCents, visitDays)
+                    ?: return@mapNotNull null
+                ConcessionPassStartDateRecommendation(
+                    startDate = startDate,
+                    campusVisitDays = visitDays,
+                    estimatedTransportCostCents = totalCost,
+                    netSavingsCents = savingsCents(totalCost, pass)
+                )
+            }.sortedWith(
+                compareByDescending<ConcessionPassStartDateRecommendation> { it.netSavingsCents }
+                    .thenBy { it.startDate }
+            ).take(topCount)
+        }
+    }
+
+    /** Positive is money saved; negative means paying more for the pass than fares. */
+    fun savingsCents(totalCostCents: Long, pass: MonthlyConcessionPass): Long =
+        totalCostCents - pass.priceCents
 
     /** A pass is worth buying only when its price is strictly below the fare total. */
     fun shouldBuy(totalCostCents: Long, pass: MonthlyConcessionPass): Boolean =
