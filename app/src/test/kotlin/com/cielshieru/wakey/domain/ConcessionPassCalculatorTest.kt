@@ -55,6 +55,47 @@ class ConcessionPassCalculatorTest {
         assertTrue(ConcessionPassCalculator.shouldBuy(8_101L, MonthlyConcessionPass.BUS_TRAIN_HYBRID))
     }
 
+    @Test
+    fun `best start dates rank each inclusive window by net savings`() {
+        val today = LocalDate.of(2026, 10, 24)
+        val events = listOf(
+            event(today, EventKind.CAMPUS, "Today"),
+            event(today.plusDays(29), EventKind.CAMPUS, "End of first window"),
+            event(today.plusDays(58), EventKind.CAMPUS, "End of last candidate window")
+        )
+
+        val rankings = ConcessionPassCalculator.rankBestStartDates(
+            events = events,
+            toCampusCents = 3_000L,
+            fromCampusCents = 3_000L,
+            firstCandidateDate = today
+        )
+        val trainPassDates = rankings.getValue(MonthlyConcessionPass.TRAIN_ONLY)
+
+        assertEquals(
+            listOf(today, today.plusDays(29), today.plusDays(1)),
+            trainPassDates.map { it.startDate }
+        )
+        assertEquals(2, trainPassDates[0].campusVisitDays)
+        assertEquals(12_000L, trainPassDates[0].estimatedTransportCostCents)
+        assertEquals(7_200L, trainPassDates[0].netSavingsCents)
+        assertEquals(6_000L, trainPassDates[2].estimatedTransportCostCents)
+        assertEquals(1_200L, trainPassDates[2].netSavingsCents)
+        assertEquals(3, trainPassDates.size)
+    }
+
+    @Test
+    fun `pass savings can be negative when fares cost less than the pass`() {
+        assertEquals(
+            -1_800L,
+            ConcessionPassCalculator.savingsCents(3_000L, MonthlyConcessionPass.TRAIN_ONLY)
+        )
+        assertEquals(
+            0L,
+            ConcessionPassCalculator.savingsCents(4_800L, MonthlyConcessionPass.TRAIN_ONLY)
+        )
+    }
+
     private fun event(date: LocalDate, kind: EventKind, title: String) = TimetableEvent(
         courseCode = "TEST1000",
         title = title,

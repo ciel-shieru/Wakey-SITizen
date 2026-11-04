@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.cielshieru.wakey.ui.home.HomeScreen
 import com.cielshieru.wakey.ui.concession.ConcessionPassCalculatorScreen
+import com.cielshieru.wakey.ui.concession.ConcessionPassBestStartDatesScreen
 import com.cielshieru.wakey.ui.ringtone.RingtonePickerScreen
 import com.cielshieru.wakey.ui.settings.SettingsScreen
 import kotlinx.coroutines.launch
@@ -35,7 +36,15 @@ fun WakeyNavHost(
             )
         }
         composable(Route.ConcessionPassCalculator.route) {
-            ConcessionPassCalculatorScreen(onNavigateBack = { navController.popBackStack() })
+            ConcessionPassCalculatorScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToBestStartDates = {
+                    navController.navigate(Route.ConcessionPassBestStartDates.route)
+                }
+            )
+        }
+        composable(Route.ConcessionPassBestStartDates.route) {
+            ConcessionPassBestStartDatesScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(Route.Settings.route) {
             Column(modifier = Modifier.fillMaxSize()) {

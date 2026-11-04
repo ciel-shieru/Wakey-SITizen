@@ -27,6 +27,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Qualifier
 import com.cielshieru.wakey.domain.model.AlarmConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -38,6 +39,11 @@ import java.time.ZoneId
 import javax.inject.Singleton
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+val Context.concessionPassDataStore: DataStore<Preferences> by preferencesDataStore(name = "concession_pass_calculator")
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ConcessionPassDataStoreQualifier
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -129,6 +135,13 @@ object AppModule {
         datastore.data.configFlow(),
         calendarEventSource
     )
+
+    @Provides
+    @Singleton
+    @ConcessionPassDataStoreQualifier
+    fun provideConcessionPassDataStore(
+        @ApplicationContext context: Context
+    ): DataStore<Preferences> = context.concessionPassDataStore
 
     @Provides
     @Singleton
